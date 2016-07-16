@@ -6,7 +6,7 @@ GameState* GME_InitializeDefault( ) {
 
     result->quit = 0;
 
-    result->world.background = NULL;
+    result->world.globalBackground = NULL;
     result->world.height = 0;
     result->world.width = 0;
 

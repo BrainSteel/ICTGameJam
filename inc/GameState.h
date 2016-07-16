@@ -64,22 +64,27 @@ typedef struct PlayerStruct {
     SDL_Texture* Player_TEX;
 } Player;
 
+/*
 typedef struct WorldStruct {
     int width;
     int height;
 
     SDL_Texture* background;
 } World;
+*/
 
-typedef struct ViewableWorldStruct {
+typedef struct WorldStruct {
     int width, height;
     int centerX, centerY;
-} ViewableWorld;
+
+    SDL_Rect viewableWorld;
+
+    SDL_Texture* globalBackground;
+} World;
 
 typedef struct GameStateStruct {
     Player player;
     World world;
-    ViewableWorld viewableWorld;
 
     int quit;
 

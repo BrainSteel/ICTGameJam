@@ -87,24 +87,30 @@ typedef struct PlayerStruct {
     int numbullet;
 } Player;
 
+/*
 typedef struct WorldStruct {
     int width;
     int height;
 
     SDL_Texture* background;
 } World;
+*/
 
-typedef struct ViewableWorldStruct {
+typedef struct WorldStruct {
     int width, height;
     int centerX, centerY;
-} ViewableWorld;
+
+    SDL_Rect viewableWorld;
+
+    SDL_Texture* globalBackground;
+    SDL_Texture* hiddenBackground;
+} World;
 
 typedef struct GameStateStruct {
     uint64_t frames;
 
     Player player;
     World world;
-    ViewableWorld viewableWorld;
 
     int quit;
 
@@ -137,7 +143,7 @@ CollisionData GetCollision( Circle one, Circle two, float elapsedtime );
 // Player functions
 void CaptureInput( GameState* state );
 void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset );
-void UpdatePlayer( Player* player, float elapsedtime );
+void UpdatePlayer( GameState* game, float elapsedtime );
 void Attach( Player* ref, Component pickup );
 void PerformAction( GameState* game, AbilityType action );
 void FreePlayer( Player* player );

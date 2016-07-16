@@ -5,20 +5,32 @@
 #include "Common.h"
 #include "GameState.h"
 
-#define SCREEN_WIDTH (1920)
-#define SCREEN_HEIGHT (1080)
+//#define SCREEN_WIDTH (1920)
+#define SCREEN_WIDTH (1280)
+//#define SCREEN_HEIGHT (1080)
+#define SCREEN_HEIGHT (720)
 #define FRAMERATE 40
 
-#define MAP_WIDTH SCREEN_WIDTH * 5
-#define MAP_HEIGHT SCREEN_HEIGHT * 5
+#define SCALE_FACTOR_X 4
+#define SCALE_FACTOR_Y 4
 
-#define PLAYER_WIDTH 50
-#define PLAYER_HEIGHT 50
+#define MAP_WIDTH (SCREEN_WIDTH * SCALE_FACTOR_X)
+#define MAP_HEIGHT (SCREEN_HEIGHT * SCALE_FACTOR_Y)
 
-void DrawMiniMap( SDL_Renderer* winrend, GameState* game );
+#define SCALE_FACTOR_X_SQUARED (SCALE_FACTOR_X * SCALE_FACTOR_X)
+#define SCALE_FACTOR_Y_SQUARED (SCALE_FACTOR_Y * SCALE_FACTOR_Y)
+
+#define PLAYER_START_X (MAP_WIDTH / 2)
+#define PLAYER_START_Y (MAP_HEIGHT / 2)
+
+#define MINIMAP_UPPER_LEFT_X (3 * SCREEN_WIDTH) / 4 //1145
+#define MINIMAP_UPPER_LEFT_Y (3 * SCREEN_HEIGHT) / 4 //5
+
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
 
 int main (int argc, char** argv ) {
+
+    // NOTE: HiddenBackground is totally useless :p
 
     gamelog( "Initializing SDL ..." );
 
@@ -30,7 +42,7 @@ int main (int argc, char** argv ) {
     gamelog( "Creating window and renderer ..." );
     SDL_Window* window;
     SDL_Renderer* winrend;
-    if ( SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP, &window, &winrend) < 0 ) {
+    if ( SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN, &window, &winrend) < 0 ) {
         gamelog( "Failed to create window and renderer ..." );
         return -1;
     }
@@ -42,6 +54,15 @@ int main (int argc, char** argv ) {
         printf("ERROR-> Background NOT LOADED");
         return 1;
     }
+    SDL_PixelFormat* fmt = Background->format;
+    Uint8 depth = fmt->BitsPerPixel;
+    Uint32 rmask, gmask, bmask, amask;
+    rmask = fmt->Rmask;
+    gmask = fmt->Gmask;
+    bmask = fmt->Bmask;
+    amask = fmt->Amask;
+    SDL_Surface* BackgroundScaled = SDL_CreateRGBSurface( 0, MAP_WIDTH, MAP_HEIGHT, depth, rmask, gmask, bmask, amask );
+    SDL_BlitScaled( Background, NULL, BackgroundScaled, NULL );
 
     SDL_Surface* Player = SDL_LoadBMP("rsc/Player.bmp");
     if(!Player)
@@ -51,53 +72,50 @@ int main (int argc, char** argv ) {
     }
     SDL_SetColorKey(Player, SDL_TRUE, SDL_MapRGB(Player->format, 0, 0, 0));
 
-    SDL_Texture* BackgroundTex = SDL_CreateTextureFromSurface(winrend, Background);
+    SDL_Texture* BackgroundTex = SDL_CreateTextureFromSurface(winrend, BackgroundScaled);
     SDL_Texture* PlayerTex = SDL_CreateTextureFromSurface(winrend, Player);
 
     SDL_FreeSurface(Background);
+    SDL_FreeSurface(BackgroundScaled);
     SDL_FreeSurface(Player);
 
     // Initialize the game state
     GameState* game = GME_InitializeDefault( );
     game->player.Player_TEX = PlayerTex;
+    game->player.entity.body.shape.rad = 20;
+    game->player.entity.body.shape.pos.x = PLAYER_START_X;
+    game->player.entity.body.shape.pos.y = PLAYER_START_Y;
 
-    game->viewableWorld.height = SCREEN_HEIGHT;
-    game->viewableWorld.width = SCREEN_WIDTH;
-    game->viewableWorld.centerY = MAP_HEIGHT / 2;
-    game->viewableWorld.centerX = MAP_WIDTH / 2;
+    game->world.height = MAP_HEIGHT;
+    game->world.width = MAP_WIDTH;
+    game->world.centerY = MAP_HEIGHT / 2;
+    game->world.centerX = MAP_WIDTH / 2;
+
+    game->world.viewableWorld.h = SCREEN_HEIGHT;
+    game->world.viewableWorld.w = SCREEN_WIDTH;
+    game->world.viewableWorld.x = (MAP_WIDTH / 2) - (SCREEN_WIDTH / 2);
+    game->world.viewableWorld.y = (MAP_HEIGHT / 2) - (SCREEN_HEIGHT / 2);
 
     gamelog( "Creating world ...");
-    CreateWorld(winrend, BackgroundTex, &game->world, 5000, 5000);
+    CreateWorld(winrend, BackgroundTex, &game->world, MAP_WIDTH, MAP_HEIGHT);
 
     gamelog( "Running game ..." );
     Run( window, winrend, game );
-
-    gamelog( "Destroying textures ...");
-    FreePlayer( &game->player );
-    SDL_DestroyTexture( BackgroundTex );
 
     gamelog( "Destroying window and renderer ...");
     SDL_DestroyWindow( window );
     SDL_DestroyRenderer( winrend );
 
+    gamelog( "Destroying textures ...");
+    SDL_DestroyTexture(BackgroundTex);
+    FreePlayer( &game->player );
+
     gamelog( "Quitting SDL ..." );
     SDL_Quit( );
     return 0;
 }
-
+// set camera to center of player
 int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
-
-    // Get window width and height
-    int screenwidth, screenheight;
-    SDL_GetWindowSize( window, &screenwidth, &screenheight );
-
-    SDL_SetRenderDrawColor( winrend, 0, 0, 0, SDL_ALPHA_OPAQUE );
-
-    gamelog( "Clearing white to the screen ...");
-    SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
-    SDL_RenderClear( winrend );
-    SDL_RenderPresent( winrend );
-
     game->player.entity.body.shape.pos.x = SCREEN_WIDTH / 2;
     game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
     game->player.entity.body.shape.rad = 20;
@@ -128,6 +146,23 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     rocket.shape.pos.x = game->player.entity.body.shape.pos.x + 15;
     Attach( &game->player, rocket );
 
+    SDL_Rect miniMap;
+    miniMap.h = (game->world.viewableWorld.h / SCALE_FACTOR_Y);
+    miniMap.w = (game->world.viewableWorld.w / SCALE_FACTOR_X);
+    miniMap.x = MINIMAP_UPPER_LEFT_X;
+    miniMap.y = MINIMAP_UPPER_LEFT_Y;
+
+    SDL_Rect showCurrentView;
+    showCurrentView.h = miniMap.h / SCALE_FACTOR_Y;
+    showCurrentView.w = miniMap.w / SCALE_FACTOR_X;
+    showCurrentView.x = MINIMAP_UPPER_LEFT_X + ( (PLAYER_START_X / SCALE_FACTOR_X) / SCALE_FACTOR_X );
+    showCurrentView.y = MINIMAP_UPPER_LEFT_Y + ( (PLAYER_START_Y / SCALE_FACTOR_Y) / SCALE_FACTOR_Y );
+
+    double stepw = SCREEN_WIDTH / 10;
+    double steph = SCREEN_HEIGHT / 10;
+
+    gamelog( "Width: %d, Height: %d", game->world.width, game->world.height );
+
     gamelog( "Waiting for quit event ..." );
     game->frames = 0;
     uint64_t starttime;
@@ -147,18 +182,71 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         PerformAction( game, Booster );
         PerformAction( game, Rocket );
 
-        UpdatePlayer( &game->player, 1.0 );
+        UpdatePlayer( game, 1.0 );
 
-        SDL_RenderCopy( winrend, game->world.background, NULL, NULL );
-        DrawPlayer( winrend, &game->player, (Vector2){ 0.0f, 0.0f });
+        game->world.centerX = game->player.entity.body.shape.pos.x;
+        game->world.centerX -= game->player.entity.body.shape.vel.x;
+        game->world.centerY = game->player.entity.body.shape.pos.y;
+        game->world.centerY -= game->player.entity.body.shape.vel.y;
+
+        game->world.viewableWorld.x = game->world.centerX - (SCREEN_WIDTH / 2);
+        game->world.viewableWorld.y = game->world.centerY - (SCREEN_HEIGHT / 2);
+
+        if( game->world.viewableWorld.x < 0 )
+        {
+            game->world.viewableWorld.x = 0;
+            game->world.centerX = game->world.viewableWorld.w / 2;
+        }
+        else if( (game->world.viewableWorld.x + game->world.viewableWorld.w) > game->world.width )
+        {
+            game->world.viewableWorld.x = game->world.width - game->world.viewableWorld.w;
+            game->world.centerX = game->world.viewableWorld.x + (game->world.viewableWorld.w / 2);
+        }
+        if( game->world.viewableWorld.y < 0 )
+        {
+            game->world.viewableWorld.y = 0;
+            game->world.centerY = game->world.viewableWorld.h / 2;
+        }
+        else if( (game->world.viewableWorld.y + game->world.viewableWorld.h > game->world.height) )
+        {
+            game->world.viewableWorld.y = game->world.height - game->world.viewableWorld.h;
+            game->world.centerY = game->world.viewableWorld.y + (game->world.viewableWorld.h / 2);
+        }
+
+        showCurrentView.x = miniMap.x + (game->world.viewableWorld.x / SCALE_FACTOR_X_SQUARED);
+        showCurrentView.y = miniMap.y + (game->world.viewableWorld.y / SCALE_FACTOR_Y_SQUARED);
+
+        // TO BE USED
+        /*
+        SDL_Rect HUD_Title;
+        HUD_Title.x = 799;
+        HUD_Title.y = 50;
+        HUD_Title.w = stepw * 20;
+        HUD_Title.h = steph * 2;
+        */
+
+        SDL_RenderCopy(winrend, game->world.globalBackground, &game->world.viewableWorld, NULL);
+
+        Vector2 offset;
+        offset.x = -game->world.viewableWorld.x;
+        offset.y = -game->world.viewableWorld.y;
+        DrawPlayer( winrend, &game->player, offset );
 
         SDL_SetRenderDrawColor( winrend, 255, 0, 255, SDL_ALPHA_OPAQUE );
         int i;
         for ( i = 0; i < game->player.numbullet; i++ ) {
             if ( game->player.playerbullets[i].active ) {
-                DrawCircle( winrend, game->player.playerbullets[i].shape, 1 );
+                Circle withcontext = game->player.playerbullets[i].shape;
+                withcontext.pos.x += offset.x;
+                withcontext.pos.y += offset.y;
+                DrawCircle( winrend, withcontext, 1 );
             }
         }
+
+        SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
+        SDL_RenderDrawRect(winrend, &miniMap);
+        SDL_RenderCopy(winrend, game->world.globalBackground, NULL, &miniMap);
+        SDL_RenderDrawRect(winrend, &showCurrentView);
 
         SDL_RenderPresent( winrend );
         game->frames++;
@@ -174,38 +262,11 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     return 0;
 }
 
-void DrawMiniMap( SDL_Renderer *winrend, GameState* game )
-{
-    SDL_Rect miniMap;
-    miniMap.h = (game->viewableWorld.height / 5);
-    miniMap.w = (game->viewableWorld.width / 5);
-    miniMap.x = 1145;
-    miniMap.y = 5;
-
-    SDL_RenderCopy(winrend, game->world.background, NULL, &miniMap);
-
-    SDL_Rect miniMapBoarder;
-    miniMapBoarder.h = (game->viewableWorld.height / 5);
-    miniMapBoarder.w = (game->viewableWorld.width / 5);
-    miniMapBoarder.x = 1145;
-    miniMapBoarder.y = 5;
-
-    SDL_RenderDrawRect(winrend, &miniMapBoarder);
-
-    SDL_Rect showCurrentView;
-    showCurrentView.h = miniMapBoarder.h / 5;
-    showCurrentView.w = miniMapBoarder.w / 5;
-    showCurrentView.x = game->viewableWorld.centerX;
-    showCurrentView.y = game->viewableWorld.centerY;
-
-    SDL_RenderDrawRect(winrend, &showCurrentView);
-}
-
-void CreateWorld(SDL_Renderer *winrend, SDL_Texture *background, World *world, int width, int height)
+void CreateWorld(SDL_Renderer *winrend, SDL_Texture *globalBackground, World *world, int width, int height)
 {
     world->height = height;
     world->width = width;
-    world->background = background;
+    world->globalBackground = globalBackground;
 
     // DO SOMETHING WITH THIS INFO (CREATE BACKGROUND, ect)
 }

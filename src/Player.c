@@ -43,12 +43,31 @@ void Attach( Player* ref, Component pickup ) {
     }
 }
 
-void UpdatePlayer( Player* player, float elapsedtime ) {
+void UpdatePlayer( GameState* game, float elapsedtime ) {
+    Player* player = &game->player;
     float elapsedtime2 = elapsedtime * elapsedtime;
     Circle* circ = &player->entity.body.shape;
 
     circ->pos.x += circ->vel.x * elapsedtime + 0.5 * circ->acc.x * elapsedtime2;
     circ->pos.y += circ->vel.y * elapsedtime + 0.5 * circ->acc.y * elapsedtime2;
+
+    if ( circ->pos.x < 0 ) {
+        circ->pos.x = 0;
+        circ->vel.x = 0;
+    }
+    else if ( circ->pos.x > game->world.width - circ->rad) {
+        circ->pos.x = game->world.width - circ->rad;
+        circ->vel.x = 0;
+    }
+
+    if ( circ->pos.y < 0 ) {
+        circ->pos.y = 0;
+        circ->vel.y = 0;
+    }
+    else if ( circ->pos.y > game->world.height - circ->rad ) {
+        circ->pos.y = game->world.height - circ->rad;
+        circ->vel.y = 0;
+    }
 
     float ang = player->entity.angvel * elapsedtime;
     float cosang = cos( ang );
@@ -107,7 +126,10 @@ void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset ) {
 
     // Draw the body in red
     SDL_SetRenderDrawColor( winrend, 255, 0, 0, SDL_ALPHA_OPAQUE );
-    DrawCircle( winrend, player->entity.body.shape, 1 );
+    Circle withoffset = player->entity.body.shape;
+    withoffset.pos.x += offset.x;
+    withoffset.pos.y += offset.y;
+    DrawCircle( winrend, withoffset, 1 );
 
     // Draw all components
     int i;
@@ -123,9 +145,14 @@ void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset ) {
             case Booster:
                 SDL_SetRenderDrawColor( winrend, 0, 255, 0, SDL_ALPHA_OPAQUE );
                 break;
+            default:
+                SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
         }
 
-        DrawCircle( winrend, comp->shape, 1 );
+        withoffset = comp->shape;
+        withoffset.pos.x += offset.x;
+        withoffset.pos.y += offset.y;
+        DrawCircle( winrend, withoffset, 1 );
     }
 
     SDL_SetRenderDrawColor( winrend, r, g, b, a );
@@ -235,7 +262,10 @@ static void UseRockets( GameState* game ) {
                 newbullet->damage = PLAYER_BULLET_DAMAGE;
                 newbullet->lifetime = PLAYER_BULLET_LIFETIME;
                 newbullet->shape.pos = comp->shape.pos;
-                Vector2 dir = VectorNormalize( VectorSubtract( game->player.input.mouseloc, comp->shape.pos ));
+                Vector2 mouseincontext;
+                mouseincontext.x = game->player.input.mouseloc.x + game->world.viewableWorld.x;
+                mouseincontext.y = game->player.input.mouseloc.y + game->world.viewableWorld.y;
+                Vector2 dir = VectorNormalize( VectorSubtract( mouseincontext, comp->shape.pos ));
                 newbullet->shape.vel = VectorScale( dir, PLAYER_BULLET_SPEED );
                 newbullet->shape.vel.x += game->player.entity.body.shape.vel.x;
                 newbullet->shape.vel.y += game->player.entity.body.shape.vel.y;

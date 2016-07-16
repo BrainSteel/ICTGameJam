@@ -3,7 +3,11 @@
 #include "GameState.h"
 
 #define MAX_PLAYER_SPEED 14
-#define MAX_ANG_VELOCITY 0.3
+#define MAX_ANG_VELOCITY 0.2
+
+static Bullet* UseFirstInactiveBullet( Player* player );
+static void AllocBulletBatch( Player* player );
+static void DeactivateBullet( Bullet* bullet );
 
 void CaptureInput( GameState* state ) {
 
@@ -17,9 +21,9 @@ void CaptureInput( GameState* state ) {
 
     state->player.input.keyboard = SDL_GetKeyboardState( &state->player.input.numkeys );
     int x, y;
-    SDL_GetMouseState( &x, &y );
-    state->player.input.mouse.x = x;
-    state->player.input.mouse.y = y;
+    state->player.input.mousebutton = SDL_GetMouseState( &x, &y );
+    state->player.input.mouseloc.x = x;
+    state->player.input.mouseloc.y = y;
 }
 
 void Attach( Player* ref, Component pickup ) {
@@ -79,6 +83,21 @@ void UpdatePlayer( Player* player, float elapsedtime ) {
     if ( circ->vel.x * circ->vel.x + circ->vel.y * circ->vel.y > MAX_PLAYER_SPEED * MAX_PLAYER_SPEED ) {
         circ->vel = VectorScale( VectorNormalize( circ->vel ), MAX_PLAYER_SPEED );
     }
+
+    for ( i = 0; i < player->numbullet; i++ ) {
+        Bullet* bullet = &player->playerbullets[i];
+        if ( bullet->active ) {
+            UpdateCircle( &bullet->shape, elapsedtime );
+            bullet->lifetime -= elapsedtime;
+            if (bullet->lifetime <= 0) {
+                DeactivateBullet( bullet );
+            }
+        }
+    }
+}
+
+static void DeactivateBullet( Bullet* bullet ) {
+    bullet->active = 0;
 }
 
 void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset ) {
@@ -112,16 +131,16 @@ void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset ) {
     SDL_SetRenderDrawColor( winrend, r, g, b, a );
 }
 
-static void useBoosters( Player* player );
-static void useRockets( Player* player );
+static void UseBoosters( Player* player );
+static void UseRockets( GameState* player );
 
-void PerformAction( Player* player, AbilityType action ) {
+void PerformAction( GameState* game, AbilityType action ) {
     switch (action) {
         case Booster:
-            useBoosters( player );
+            UseBoosters( &game->player );
             break;
         case Rocket:
-            useRockets( player );
+            UseRockets( game );
             break;
         default:
             break;
@@ -130,7 +149,7 @@ void PerformAction( Player* player, AbilityType action ) {
 
 #define ROOT2_2 0.70710678118f
 
-static void useBoosters( Player* player ) {
+static void UseBoosters( Player* player ) {
 
     int right = 1;
     int up = 1 << 1;
@@ -139,20 +158,20 @@ static void useBoosters( Player* player ) {
 
     int direction = 0;
     int count = 0;
-    if (player->input.keyboard[SDL_SCANCODE_UP]) {
+    if (player->input.keyboard[SDL_SCANCODE_W]) {
         direction |= up;
         count++;
     }
-    else if (player->input.keyboard[SDL_SCANCODE_DOWN]) {
+    else if (player->input.keyboard[SDL_SCANCODE_S]) {
         direction |= down;
         count++;
     }
 
-    if (player->input.keyboard[SDL_SCANCODE_RIGHT]) {
+    if (player->input.keyboard[SDL_SCANCODE_D]) {
         direction |= right;
         count++;
     }
-    else if (player->input.keyboard[SDL_SCANCODE_LEFT]) {
+    else if (player->input.keyboard[SDL_SCANCODE_A]) {
         direction |= left;
         count++;
     }
@@ -199,14 +218,82 @@ static void useBoosters( Player* player ) {
     player->entity.angacc = moment / player->entity.MOI;
 }
 
-static void useRockets( Player* player ) {
+#define ROCKET_CONSTANT 10
+#define ROCKET_CONSTANT_FACTOR 1
+#define PLAYER_BULLET_LIFETIME 100
+#define PLAYER_BULLET_SPEED 16
+#define PLAYER_BULLET_DAMAGE 3
+#define PLAYER_BULLET_RADIUS 5
+static void UseRockets( GameState* game ) {
+    if ( game->player.input.mousebutton & SDL_BUTTON( SDL_BUTTON_LEFT )) {
+        int i;
+        for ( i = 0; i < game->player.entity.numcomponent; i++ ) {
+            Component* comp = &game->player.entity.components[i];
+            if ( comp->ability == Rocket && (game->frames - comp->frameused) > ROCKET_CONSTANT - ROCKET_CONSTANT_FACTOR * comp->strength ) {
+                Bullet* newbullet = UseFirstInactiveBullet( &game->player );
+                newbullet->active = 1;
+                newbullet->damage = PLAYER_BULLET_DAMAGE;
+                newbullet->lifetime = PLAYER_BULLET_LIFETIME;
+                newbullet->shape.pos = comp->shape.pos;
+                Vector2 dir = VectorNormalize( VectorSubtract( game->player.input.mouseloc, comp->shape.pos ));
+                newbullet->shape.vel = VectorScale( dir, PLAYER_BULLET_SPEED );
 
+                comp->frameused = game->frames;
+
+                newbullet->shape.rad = PLAYER_BULLET_RADIUS;
+                newbullet->shape.acc.x = 0.0f;
+                newbullet->shape.acc.y = 0.0f;
+            }
+        }
+    }
+}
+
+static Bullet* UseFirstInactiveBullet( Player* player ) {
+    if ( player->numbullet <= player->firstinactivebullet ) {
+        // Assume this works because time.
+        AllocBulletBatch( player );
+
+        Bullet* result = &player->playerbullets[player->firstinactivebullet];
+
+        // We just allocated new memory, so all of the bullets hereafter are inactive.
+        player->firstinactivebullet++;
+        return result;
+    }
+    else {
+        Bullet* result = &player->playerbullets[player->firstinactivebullet];
+        for ( player->firstinactivebullet++; player->firstinactivebullet < player->numbullet; player->firstinactivebullet++ ) {
+            if ( !player->playerbullets[player->firstinactivebullet].active ) {
+                break;
+            }
+        }
+
+        if ( player->firstinactivebullet == player->numbullet ) {
+            AllocBulletBatch( player );
+        }
+
+        return result;
+    }
+}
+
+#define BATCH_SIZE 10
+static void AllocBulletBatch( Player* player ) {
+    Bullet* bullets = realloc( player->playerbullets, (player->numbullet + BATCH_SIZE) * sizeof(*bullets) );
+    if ( bullets ) {
+        player->playerbullets = bullets;
+        int i;
+        for ( i = player->numbullet; i < player->numbullet + BATCH_SIZE; i++ ) {
+            BLT_InitializeDefault( &player->playerbullets[i] );
+        }
+        player->numbullet += BATCH_SIZE;
+    }
 }
 
 void FreePlayer( Player* player ) {
-    if ( player->entity.components != NULL ) {
+    if ( player->entity.numcomponent > 0 ) {
         free( player->entity.components );
     }
+    if ( player->numbullet > 0 ) {
+        free( player->playerbullets );
+    }
     SDL_DestroyTexture( player->Player_TEX );
-    free( player );
 }

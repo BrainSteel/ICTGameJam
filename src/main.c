@@ -42,8 +42,6 @@ int main (int argc, char** argv ) {
         printf("ERROR-> Background NOT LOADED");
         return 1;
     }
-    SDL_SetColorKey(Background, SDL_TRUE, SDL_MapRGB(Background->format, 0, 0, 0));
-
 
     SDL_Surface* Player = SDL_LoadBMP("rsc/Player.bmp");
     if(!Player)
@@ -74,13 +72,13 @@ int main (int argc, char** argv ) {
     gamelog( "Running game ..." );
     Run( window, winrend, game );
 
+    gamelog( "Destroying textures ...");
+    FreePlayer( &game->player );
+    SDL_DestroyTexture( BackgroundTex );
+
     gamelog( "Destroying window and renderer ...");
     SDL_DestroyWindow( window );
     SDL_DestroyRenderer( winrend );
-
-    gamelog( "Destroying textures ...");
-    SDL_DestroyTexture(BackgroundTex);
-    SDL_DestroyTexture(PlayerTex);
 
     gamelog( "Quitting SDL ..." );
     SDL_Quit( );
@@ -118,7 +116,20 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     booster.shape.pos.y = game->player.entity.body.shape.pos.y - 30;
     Attach( &game->player, booster );
 
+    Component rocket;
+    rocket.strength = 1.0;
+    rocket.mass = 2.0;
+    rocket.ability = Rocket;
+    rocket.health = 10;
+    rocket.shape.rad = 10;
+    rocket.shape.pos.x = game->player.entity.body.shape.pos.x - 15;
+    rocket.shape.pos.y = game->player.entity.body.shape.pos.y + 15;
+    Attach( &game->player, rocket );
+    rocket.shape.pos.x = game->player.entity.body.shape.pos.x + 15;
+    Attach( &game->player, rocket );
+
     gamelog( "Waiting for quit event ..." );
+    game->frames = 0;
     uint64_t starttime;
     while ( 1 ) {
         starttime = SDL_GetTicks( );
@@ -133,15 +144,24 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         game->player.entity.body.shape.acc.y = 0.0f;
         game->player.entity.angacc = 0.0f;
 
-        PerformAction( &game->player, Booster );
+        PerformAction( game, Booster );
+        PerformAction( game, Rocket );
 
         UpdatePlayer( &game->player, 1.0 );
 
-        SDL_RenderClear( winrend );
         SDL_RenderCopy( winrend, game->world.background, NULL, NULL );
         DrawPlayer( winrend, &game->player, (Vector2){ 0.0f, 0.0f });
-        SDL_RenderPresent( winrend );
 
+        SDL_SetRenderDrawColor( winrend, 255, 0, 255, SDL_ALPHA_OPAQUE );
+        int i;
+        for ( i = 0; i < game->player.numbullet; i++ ) {
+            if ( game->player.playerbullets[i].active ) {
+                DrawCircle( winrend, game->player.playerbullets[i].shape, 1 );
+            }
+        }
+
+        SDL_RenderPresent( winrend );
+        game->frames++;
         uint64_t endtime = SDL_GetTicks( );
         if ( endtime - starttime < 1000 / FRAMERATE) {
             SDL_Delay(( 1000 / FRAMERATE ) - ( SDL_GetTicks() - starttime ));

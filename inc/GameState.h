@@ -35,12 +35,20 @@ typedef struct CircleStruct {
     Vector2 acc;
 } Circle;
 
+typedef struct BulletStruct {
+    Circle shape;
+    float lifetime;
+    int active;
+    int damage;
+} Bullet;
+
 typedef struct ComponentStruct {
     Circle shape;
     Vector2 relativepos;
     float health;
     float mass;
     float strength;
+    uint64_t frameused;
     AbilityType ability;
 } Component;
 
@@ -59,13 +67,18 @@ typedef struct EntityStruct {
 typedef struct InputStruct {
     int numkeys;
     const Uint8* keyboard;
-    Vector2 mouse;
+    Vector2 mouseloc;
+    Uint32 mousebutton;
 } Input;
 
 typedef struct PlayerStruct {
     Entity entity;
     Input input;
     SDL_Texture* Player_TEX;
+
+    Bullet* playerbullets;
+    int firstinactivebullet;
+    int numbullet;
 } Player;
 
 typedef struct WorldStruct {
@@ -81,6 +94,8 @@ typedef struct ViewableWorldStruct {
 } ViewableWorld;
 
 typedef struct GameStateStruct {
+    uint64_t frames;
+
     Player player;
     World world;
     ViewableWorld viewableWorld;
@@ -97,11 +112,10 @@ typedef struct GameStateStruct {
     int numpickups;
 } GameState;
 
-int run( );
-
 GameState* GME_InitializeDefault( );
 void PLR_InitializeDefault( Player* ref );
 void CMP_InitializeDefault( Component* component );
+void BLT_InitializeDefault( Bullet* bullet );
 void CRC_InitializeDefault( Circle* circ );
 void VCT_InitializeDefault( Vector2* vect );
 
@@ -116,6 +130,7 @@ CollisionData GetCollision( Circle one, Circle two, float elapsedtime );
 void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset );
 void UpdatePlayer( Player* player, float elapsedtime );
 void Attach( Player* ref, Component pickup );
-void PerformAction( Player* player, AbilityType action );
+void PerformAction( GameState* game, AbilityType action );
+void FreePlayer( Player* player );
 
 #endif

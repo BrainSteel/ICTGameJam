@@ -29,10 +29,15 @@ void PLR_InitializeDefault( Player* ref ) {
     ref->entity.angvel = 0.0f;
     ref->entity.MOI = 0.0f;
 
+    ref->firstinactivebullet = 0;
+    ref->numbullet = 0;
+    ref->playerbullets = NULL;
+
     ref->Player_TEX = NULL;
     ref->input.keyboard = NULL;
     ref->input.numkeys = 0;
-    VCT_InitializeDefault( &ref->input.mouse );
+    ref->input.mousebutton = 0;
+    VCT_InitializeDefault( &ref->input.mouseloc );
     CMP_InitializeDefault( &ref->entity.body );
 }
 
@@ -43,6 +48,13 @@ void CMP_InitializeDefault( Component* component ) {
     component->mass = 0.0f;
     VCT_InitializeDefault( &component->relativepos );
     CRC_InitializeDefault( &component->shape );
+}
+
+void BLT_InitializeDefault( Bullet* bullet ) {
+    bullet->active = 0;
+    bullet->damage = 0;
+    bullet->lifetime = 0;
+    CRC_InitializeDefault( &bullet->shape );
 }
 
 void CRC_InitializeDefault( Circle* circ ) {

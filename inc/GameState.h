@@ -53,18 +53,25 @@ typedef struct InputStruct {
 typedef struct PlayerStruct {
     Entity entity;
     Input input;
+    SDL_Texture* Player_TEX;
 } Player;
 
 typedef struct WorldStruct {
     int width;
     int height;
 
-    SDL_Texture* back;
+    SDL_Texture* background;
 } World;
+
+typedef struct ViewableWorldStruct {
+    int width, height;
+    int centerX, centerY;
+} ViewableWorld;
 
 typedef struct GameStateStruct {
     Player player;
     World world;
+    ViewableWorld viewableWorld;
 
     int quit;
 
@@ -82,7 +89,7 @@ void PLR_InitializeDefault( Player* ref );
 void CRC_InitializeDefault( Circle* circ );
 void VCT_InitializeDefault( Vector2* vect );
 
-int Run( SDL_Window* window, SDL_Renderer* winrend );
+int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game );
 void CaptureInput( GameState* state );
 
 Vector2 GetCollision( Circle one, Circle two );

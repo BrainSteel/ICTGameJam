@@ -23,6 +23,14 @@ typedef struct Vector2Struct {
     float x, y;
 } Vector2;
 
+typedef struct CollisionDataStruct {
+    Vector2 loc;
+    Vector2 oneloc;
+    Vector2 twoloc;
+    float elapsedtime;
+    int didoccur;
+} CollisionData;
+
 typedef struct CircleStruct {
     float rad;
     Vector2 pos;
@@ -85,7 +93,12 @@ void VCT_InitializeDefault( Vector2* vect );
 int Run( SDL_Window* window, SDL_Renderer* winrend );
 void CaptureInput( GameState* state );
 
-Vector2 GetCollision( Circle one, Circle two );
-Vector2 Attach( Player* ref, Component pickup, Vector2 relplayerloc);
+void DrawCircle( SDL_Renderer* winrend, Circle circ, int fill );
+
+CollisionData GetCollision( Circle one, Circle two, float elapsedtime );
+
+void UpdateCircle( Circle* circ, float elapsedtime );
+
+void Attach( Player* ref, Component pickup, Vector2 relplayerloc);
 
 #endif

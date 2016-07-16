@@ -43,13 +43,28 @@ int Run( SDL_Window* window, SDL_Renderer* winrend ) {
     int screenwidth, screenheight;
     SDL_GetWindowSize( window, &screenwidth, &screenheight );
 
+    Circle circ;
+    circ.pos.x = 600;
+    circ.pos.y = 200;
+    circ.rad = 20;
+    circ.vel.x = 50;
+    circ.vel.y = 95;
+    circ.acc.x = -21;
+    circ.acc.y = 21;
+
+    Circle circ2;
+    circ2.pos.x = 800;
+    circ2.pos.y = 500;
+    circ2.vel.x = -84;
+    circ2.vel.y = -60;
+    circ2.acc.x = -18;
+    circ2.acc.y = 6;
+    circ2.rad = 20;
+
+    SDL_SetRenderDrawColor( winrend, 0, 0, 0, SDL_ALPHA_OPAQUE );
+
     // Initialize the game state
     GameState* game = GME_InitializeDefault( );
-
-    gamelog( "Clearing white to the screen ...");
-    SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
-    SDL_RenderClear( winrend );
-    SDL_RenderPresent( winrend );
 
     gamelog( "Waiting for quit event ..." );
     while ( 1 ) {
@@ -57,8 +72,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend ) {
         if ( game->quit ) {
             break;
         }
-
-
     }
 
     return 0;

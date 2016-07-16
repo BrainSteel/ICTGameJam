@@ -15,9 +15,10 @@
 #include "Vector.h"
 
 typedef enum AbilityTypeEnum {
-    None,
+    None = 0,
     Rocket,
     Booster,
+    NumAbilities
 } AbilityType;
 
 typedef struct CollisionDataStruct {
@@ -64,6 +65,11 @@ typedef struct EntityStruct {
     float MOI;
 } Entity;
 
+typedef struct EnemyStruct {
+    Entity entity;
+    int alive;
+} Enemy;
+
 typedef struct InputStruct {
     int numkeys;
     const Uint8* keyboard;
@@ -105,13 +111,14 @@ typedef struct GameStateStruct {
     Circle* bullets;
     int numbullets;
 
-    Entity* enemies;
+    Enemy* enemies;
     int numenemy;
 
     Component* pickups;
     int numpickups;
 } GameState;
 
+// Initialization functions
 GameState* GME_InitializeDefault( );
 void PLR_InitializeDefault( Player* ref );
 void CMP_InitializeDefault( Component* component );
@@ -119,18 +126,24 @@ void BLT_InitializeDefault( Bullet* bullet );
 void CRC_InitializeDefault( Circle* circ );
 void VCT_InitializeDefault( Vector2* vect );
 
+// Primary game loop
 int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game );
-void CaptureInput( GameState* state );
 
+// Circle functions
 void DrawCircle( SDL_Renderer* winrend, Circle circ, int fill );
 void UpdateCircle( Circle* circ, float elapsedtime );
-
 CollisionData GetCollision( Circle one, Circle two, float elapsedtime );
 
+// Player functions
+void CaptureInput( GameState* state );
 void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset );
 void UpdatePlayer( Player* player, float elapsedtime );
 void Attach( Player* ref, Component pickup );
 void PerformAction( GameState* game, AbilityType action );
 void FreePlayer( Player* player );
+
+void AddComponent( GameState* state, AbilityType ability, int strengthmax, Vector2* position );
+
+void AddEnemy( GameState* state, int totalstrength );
 
 #endif

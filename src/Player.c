@@ -237,6 +237,8 @@ static void UseRockets( GameState* game ) {
                 newbullet->shape.pos = comp->shape.pos;
                 Vector2 dir = VectorNormalize( VectorSubtract( game->player.input.mouseloc, comp->shape.pos ));
                 newbullet->shape.vel = VectorScale( dir, PLAYER_BULLET_SPEED );
+                newbullet->shape.vel.x += game->player.entity.body.shape.vel.x;
+                newbullet->shape.vel.y += game->player.entity.body.shape.vel.y;
 
                 comp->frameused = game->frames;
 

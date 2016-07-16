@@ -4,7 +4,7 @@ CFLAGS = -O0 -Wall -D DEBUG
 CC = gcc
 
 # Object file names
-OBJECT_NAMES = main.o
+OBJECT_NAMES = main.o Defaults.o
 
 # SDL2 paths
 SDL2_LDIR = SDL/lib

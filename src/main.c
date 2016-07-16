@@ -1,49 +1,82 @@
-#include "stdio.h"
+#include "stdlib.h"
+
 #include "SDL.h"
 
-#ifdef DEBUG
-#define log(...) printf(__VA_ARGS__); printf("\n")
-#else
-#define log(...)
-#endif
+#include "Common.h"
+#include "GameState.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH (1920/2)
+#define SCREEN_HEIGHT (1080/2)
 
 int main (int argc, char** argv ) {
 
-    log( "Initializing SDL ..." );
+    gamelog( "Initializing SDL ..." );
 
     if (SDL_Init( SDL_INIT_EVERYTHING ) < 0 ) {
-        log( "Failed to initialize ..." );
+        gamelog( "Failed to initialize ..." );
         return -1;
     }
 
-    log( "Creating window and renderer ..." ); 
+    gamelog( "Creating window and renderer ..." );
     SDL_Window* window;
     SDL_Renderer* winrend;
-    if ( SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN, &window, &winrend) < 0 ) {
-        log( "Failed to create window and renderer ..." );
+    if ( SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN_DESKTOP, &window, &winrend) < 0 ) {
+        gamelog( "Failed to create window and renderer ..." );
         return -1;
     }
 
-    log( "Clearing white to the screen ...");
+    gamelog( "Running game ..." );
+    Run( window, winrend );
+
+    gamelog( "Destroying window and renderer ...");
+    SDL_DestroyWindow( window );
+    SDL_DestroyRenderer( winrend );
+
+    gamelog( "Quitting SDL ..." );
+    SDL_Quit( );
+    return 0;
+}
+
+int Run( SDL_Window* window, SDL_Renderer* winrend ) {
+
+    // Get window width and height
+    int screenwidth, screenheight;
+    SDL_GetWindowSize( window, &screenwidth, &screenheight );
+
+    // Initialize the game state
+    GameState* game = GME_InitializeDefault( );
+
+    gamelog( "Clearing white to the screen ...");
     SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
     SDL_RenderClear( winrend );
     SDL_RenderPresent( winrend );
 
-    log( "Waiting for quit event ..." );
-    SDL_Event event;
-    int done = 0;
-    while ( !done ) {
-        SDL_PollEvent( &event );
+    gamelog( "Waiting for quit event ..." );
+    while ( 1 ) {
+        CaptureInput( game );
+        if ( game->quit ) {
+            break;
+        }
 
-        if (event.type == SDL_QUIT) {
-            done = 1;
+
+    }
+
+    return 0;
+}
+
+void CaptureInput( GameState* state ) {
+
+    SDL_Event event;
+    while ( SDL_PollEvent(&event) ) {
+        if ( event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) ) {
+            state->quit = 1;
+            return;
         }
     }
 
-    log( "Performing cleanup operations ..." );
-    SDL_Quit( );
-    return 0;
+    state->player.input.keyboard = SDL_GetKeyboardState( &state->player.input.numkeys );
+    int x, y;
+    SDL_GetMouseState( &x, &y );
+    state->player.input.mouse.x = x;
+    state->player.input.mouse.y = y;
 }

@@ -80,6 +80,7 @@ typedef struct WorldStruct {
     SDL_Rect viewableWorld;
 
     SDL_Texture* globalBackground;
+    SDL_Texture* hiddenBackground;
 } World;
 
 typedef struct GameStateStruct {

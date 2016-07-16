@@ -70,6 +70,8 @@ int main (int argc, char** argv ) {
 
     game->viewableWorld.height = SCREEN_HEIGHT;
     game->viewableWorld.width = SCREEN_WIDTH;
+    game->viewableWorld.centerY = MAP_HEIGHT / 2;
+    game->viewableWorld.centerX = MAP_WIDTH / 2;
 
 
 
@@ -196,7 +198,7 @@ void DrawMiniMap( SDL_Renderer *winrend, GameState* game )
         showCurrentView.h = miniMapBoarder.h / 5;
         showCurrentView.w = miniMapBoarder.w / 5;
         showCurrentView.x = game->viewableWorld.centerX;
-        showCurrentView.y = 20;
+        showCurrentView.y = game->viewableWorld.centerY;
 
         SDL_RenderDrawRect(winrend, &showCurrentView);
 

@@ -5,8 +5,11 @@
 #include "Common.h"
 #include "GameState.h"
 
-#define SCREEN_WIDTH (1920/2)
-#define SCREEN_HEIGHT (1080/2)
+#define SCREEN_WIDTH (1920)
+#define SCREEN_HEIGHT (1080)
+
+#define MAP_WIDTH SCREEN_WIDTH * 5
+#define MAP_HEIGHT SCREEN_HEIGHT * 5
 
 #define PLAYER_WIDTH 50
 #define PLAYER_HEIGHT 50
@@ -35,7 +38,7 @@ int main (int argc, char** argv ) {
         printf("ERROR-> Background NOT LOADED");
         return 1;
     }
-    SDL_SetColorKey(Background, SDL_TRUE, SDL_MapRGB(Background->format, 255, 0, 255));
+    SDL_SetColorKey(Background, SDL_TRUE, SDL_MapRGB(Background->format, 0, 0, 0));
 
 
     SDL_Surface* Player = SDL_LoadBMP("rsc//Player.bmp");
@@ -44,7 +47,7 @@ int main (int argc, char** argv ) {
         printf("ERROR-> Player NOT LOADED");
         return 1;
     }
-    SDL_SetColorKey(Player, SDL_TRUE, SDL_MapRGB(Player->format, 255, 0, 255));
+    SDL_SetColorKey(Player, SDL_TRUE, SDL_MapRGB(Player->format, 0, 0, 0));
 
 
 
@@ -62,6 +65,13 @@ int main (int argc, char** argv ) {
     // Initialize the game state
     GameState* game = GME_InitializeDefault( );
     game->player.Player_TEX = PlayerTex;
+
+
+
+    game->viewableWorld.height = SCREEN_HEIGHT;
+    game->viewableWorld.width = SCREEN_WIDTH;
+
+
 
     gamelog( "Creating world ...");
     CreateWorld(winrend, BackgroundTex, &game->world , 5000, 5000);
@@ -88,26 +98,16 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     int screenwidth, screenheight;
     SDL_GetWindowSize( window, &screenwidth, &screenheight );
 
+    int playerlocX = 500;
+    int playerlocY = 500;
+
     gamelog( "Clearing white to the screen ...");
     SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
     SDL_RenderClear( winrend );
     SDL_RenderPresent( winrend );
 
-    double stepw = SCREEN_WIDTH / 20;
-    double steph = SCREEN_HEIGHT / 20;
-
-    game->viewableWorld.height = SCREEN_HEIGHT;
-    game->viewableWorld.width = SCREEN_WIDTH;
-    // Make these relative to the world map?
-    game->viewableWorld.centerX = 100;
-    game->viewableWorld.centerY = 100;
-
-
-    SDL_Rect pickrect;
-    pickrect.h = game->viewableWorld.height;
-    pickrect.w = game->viewableWorld.width;
-    pickrect.x = game->viewableWorld.centerX;
-    pickrect.y = game->viewableWorld.centerY;
+    double stepw = SCREEN_WIDTH / 10;
+    double steph = SCREEN_HEIGHT / 10;
 
     gamelog( "Waiting for quit event ..." );
     while ( 1 ) {
@@ -119,24 +119,24 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
         // THIS IS TERRIBLE
         SDL_Rect worldSourceSnip;
-        worldSourceSnip.h = 500;
-        worldSourceSnip.w = 500;
-        worldSourceSnip.x = 50;
-        worldSourceSnip.h = 50;
+        worldSourceSnip.h = SCREEN_HEIGHT;
+        worldSourceSnip.w = SCREEN_WIDTH;
+        worldSourceSnip.x = 0;
+        worldSourceSnip.h = 0;
 
         SDL_Rect worldDestSnip;
-        worldDestSnip.h = SCREEN_HEIGHT;
-        worldDestSnip.w = SCREEN_WIDTH;
-        worldDestSnip.x = 0;
-        worldDestSnip.y = 0;
+        worldDestSnip.h = game->viewableWorld.height;
+        worldDestSnip.w = game->viewableWorld.width;
 
-        SDL_RenderCopy(winrend, game->world.background, &worldSourceSnip, &worldDestSnip);
+        SDL_RenderCopy(winrend, game->world.background, NULL, &worldDestSnip);
+
+        DrawMiniMap(winrend, game);
 
         SDL_Rect playerloc;
         playerloc.h = PLAYER_HEIGHT;
         playerloc.w = PLAYER_WIDTH;
-        playerloc.x = 800;
-        playerloc.y = 500;
+        playerloc.x = playerlocX;
+        playerloc.y = playerlocY;
 
         SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
 
@@ -148,14 +148,23 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
         if(game->player.input.keyboard[SDL_SCANCODE_UP] == 1)
         {
-            SDL_SetRenderDrawColor(winrend, 202, 225, 255, SDL_ALPHA_OPAQUE);
-
-            SDL_RenderDrawLine(winrend, 0, 0, 50, 50);
-
-
-
-            SDL_RenderDrawRect(winrend, &HUD_Title);
-            SDL_RenderFillRect(winrend, &HUD_Title);
+            playerloc.y = playerlocY -= 1;
+            SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
+        }
+        else if(game->player.input.keyboard[SDL_SCANCODE_DOWN] == 1)
+        {
+            playerloc.y = playerlocY += 1;
+            SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
+        }
+        else if(game->player.input.keyboard[SDL_SCANCODE_RIGHT] == 1)
+        {
+            playerloc.x = playerlocX += 1;
+            SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
+        }
+        else if(game->player.input.keyboard[SDL_SCANCODE_LEFT] == 1)
+        {
+            playerloc.x = playerlocX -= 1;
+            SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
         }
 
 
@@ -163,6 +172,35 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     }
 
     return 0;
+}
+
+void DrawMiniMap( SDL_Renderer *winrend, GameState* game )
+{
+        SDL_Rect miniMap;
+        miniMap.h = (game->viewableWorld.height / 5);
+        miniMap.w = (game->viewableWorld.width / 5);
+        miniMap.x = 1145;
+        miniMap.y = 5;
+
+        SDL_RenderCopy(winrend, game->world.background, NULL, &miniMap);
+
+        SDL_Rect miniMapBoarder;
+        miniMapBoarder.h = (game->viewableWorld.height / 5);
+        miniMapBoarder.w = (game->viewableWorld.width / 5);
+        miniMapBoarder.x = 1145;
+        miniMapBoarder.y = 5;
+
+        SDL_RenderDrawRect(winrend, &miniMapBoarder);
+
+        SDL_Rect showCurrentView;
+        showCurrentView.h = miniMapBoarder.h / 5;
+        showCurrentView.w = miniMapBoarder.w / 5;
+        showCurrentView.x = game->viewableWorld.centerX;
+        showCurrentView.y = 20;
+
+        SDL_RenderDrawRect(winrend, &showCurrentView);
+
+
 }
 
 void CaptureInput( GameState* state ) {

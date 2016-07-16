@@ -5,7 +5,6 @@ CC = gcc
 
 # Object file names
 OBJECT_NAMES = main.o
-RESOURCE_NAMES  = resource
 
 # SDL2 paths
 SDL2_LDIR = SDL/lib
@@ -21,7 +20,6 @@ RDIR = rsc
 
 # Extend object names into full object paths
 OBJECTS = $(OBJECT_NAMES:%.o=$(ODIR)/%.o)
-RESOURCES = $(RESOURCE_NAMES:%=$(RDIR)/%)
 
 REF_FRAMEWORKS =
 UNAME = $(shell uname)
@@ -43,12 +41,8 @@ $(BDIR) :
 $(ODIR)/%.o : $(SDIR)/%.c $(ODIR)
 	$(CC) -c -I$(IDIR) -I$(SDL2_IDIR) $(CFLAGS) -o $@ $<
 
-$(RDIR)/% :
-	cp $@ $($@:$(RDIR)/%=$(BDIR)/%)
-
-
 # Make the project in the bin directory
-$(PROJECT_NAME): $(OBJECTS) $(BDIR) $(RESOURCES)
+$(PROJECT_NAME): $(OBJECTS) $(BDIR)
 	$(CC) -L$(SDL2_LDIR) -l$(SDL2_LIB) $(REF_FRAMEWORKS) -o $(BDIR)/$@ $(OBJECTS)
 
 # Clean the project

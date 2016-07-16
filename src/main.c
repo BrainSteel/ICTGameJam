@@ -19,7 +19,7 @@ int main (int argc, char** argv ) {
         return -1;
     }
 
-    log( "Creating window and renderer ..." );
+    log( "Creating window and renderer ..." ); 
     SDL_Window* window;
     SDL_Renderer* winrend;
     if ( SDL_CreateWindowAndRenderer(SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN, &window, &winrend) < 0 ) {

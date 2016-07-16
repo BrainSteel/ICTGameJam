@@ -2,6 +2,7 @@
 
 #include "Common.h"
 #include "GameState.h"
+#include "Vector.h"
 
 void DrawCircle( SDL_Renderer* winrend, Circle circ, int fill ) {
     int drawwidth, drawheight;
@@ -50,17 +51,6 @@ void DrawCircle( SDL_Renderer* winrend, Circle circ, int fill ) {
             x -= 1;
         }
     }
-}
-
-static Vector2 VectorSubtract( Vector2 one, Vector2 two ) {
-    Vector2 result;
-    result.x = one.x - two.x;
-    result.y = one.y - two.y;
-    return result;
-}
-
-static float VectorLength2( Vector2 vect ) {
-    return vect.x * vect.x + vect.y * vect.y;
 }
 
 CollisionData GetCollision( Circle one, Circle two, float elapsedtime ) {

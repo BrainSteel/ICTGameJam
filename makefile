@@ -1,10 +1,11 @@
 # Project name, C flags, and compiler
 PROJECT_NAME = ictjam
-CFLAGS = -O0 -Wall -D DEBUG
+CFLAGS = -Os -Wall -D DEBUG
 CC = gcc
 
 # Object file names
-OBJECT_NAMES = main.o Defaults.o Circle.o
+OBJECT_NAMES = main.o Defaults.o Circle.o Player.o
+BMP_NAMES = Background.bmp Player.bmp
 
 # SDL2 paths
 SDL2_LDIR = SDL/lib
@@ -20,6 +21,7 @@ RDIR = rsc
 
 # Extend object names into full object paths
 OBJECTS = $(OBJECT_NAMES:%.o=$(ODIR)/%.o)
+BMPS = $(BMP_NAMES:%.bmp=$(RDIR)/%.bmp)
 
 REF_FRAMEWORKS =
 UNAME = $(shell uname)
@@ -37,12 +39,20 @@ $(ODIR) :
 $(BDIR) :
 	mkdir $(BDIR)
 
+$(RDIR) : $(BDIR)
+	mkdir $(BDIR)/$(RDIR)
+
 # Make the object files
 $(ODIR)/%.o : $(SDIR)/%.c $(ODIR)
 	$(CC) -c -I$(IDIR) -I$(SDL2_IDIR) $(CFLAGS) -o $@ $<
 
+# Copy resources
+$(RDIR)/%.bmp : $(RDIR) FORCE
+	cp $@ $(subst $(RDIR),$(BDIR)/$(RDIR),$@)
+FORCE:
+
 # Make the project in the bin directory
-$(PROJECT_NAME): $(OBJECTS) $(BDIR)
+$(PROJECT_NAME): $(OBJECTS) $(BDIR) $(BMPS)
 	$(CC) -L$(SDL2_LDIR) -l$(SDL2_LIB) $(REF_FRAMEWORKS) -o $(BDIR)/$@ $(OBJECTS)
 
 # Clean the project

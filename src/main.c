@@ -7,6 +7,7 @@
 
 #define SCREEN_WIDTH (1920)
 #define SCREEN_HEIGHT (1080)
+#define FRAMERATE 40
 
 #define MAP_WIDTH SCREEN_WIDTH * 5
 #define MAP_HEIGHT SCREEN_HEIGHT * 5
@@ -14,8 +15,8 @@
 #define PLAYER_WIDTH 50
 #define PLAYER_HEIGHT 50
 
-void DrawMiniMap( SDL_Renderer *winrend, GameState* game );
-void CreateWorld(SDL_Renderer *winrend, SDL_Texture *background, World *world, int width, int height);
+void DrawMiniMap( SDL_Renderer* winrend, GameState* game );
+void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
 
 int main (int argc, char** argv ) {
 
@@ -34,7 +35,7 @@ int main (int argc, char** argv ) {
         return -1;
     }
 
-    SDL_Surface* Background = SDL_LoadBMP("rsc\\Background.bmp");
+    SDL_Surface* Background = SDL_LoadBMP("rsc/Background.bmp");
     if(!Background)
     {
         printf("%s", SDL_GetError());
@@ -44,7 +45,7 @@ int main (int argc, char** argv ) {
     SDL_SetColorKey(Background, SDL_TRUE, SDL_MapRGB(Background->format, 0, 0, 0));
 
 
-    SDL_Surface* Player = SDL_LoadBMP("rsc//Player.bmp");
+    SDL_Surface* Player = SDL_LoadBMP("rsc/Player.bmp");
     if(!Player)
     {
         printf("ERROR-> Player NOT LOADED");
@@ -106,8 +107,10 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     double steph = SCREEN_HEIGHT / 10;
 
     gamelog( "Waiting for quit event ..." );
+    uint64_t starttime;
     while ( 1 ) {
-        SDL_RenderClear(winrend);
+        starttime = SDL_GetTicks( );
+
         CaptureInput( game );
         if ( game->quit ) {
             break;
@@ -121,6 +124,8 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         worldSourceSnip.h = 0;
 
         SDL_Rect worldDestSnip;
+        worldDestSnip.x = 0;
+        worldDestSnip.y = 0;
         worldDestSnip.h = game->viewableWorld.height;
         worldDestSnip.w = game->viewableWorld.width;
 
@@ -167,8 +172,15 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
         }
 
-
         SDL_RenderPresent(winrend);
+
+        uint64_t endtime = SDL_GetTicks( );
+        if ( endtime - starttime < 1000 / FRAMERATE) {
+            SDL_Delay(( 1000 / FRAMERATE ) - ( SDL_GetTicks() - starttime ));
+        }
+        else {
+            gamelog( "Frame took longer than expected: %llu ms", endtime - starttime );
+        }
     }
 
     return 0;
@@ -176,46 +188,29 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
 void DrawMiniMap( SDL_Renderer *winrend, GameState* game )
 {
-        SDL_Rect miniMap;
-        miniMap.h = (game->viewableWorld.height / 5);
-        miniMap.w = (game->viewableWorld.width / 5);
-        miniMap.x = 1145;
-        miniMap.y = 5;
+    SDL_Rect miniMap;
+    miniMap.h = (game->viewableWorld.height / 5);
+    miniMap.w = (game->viewableWorld.width / 5);
+    miniMap.x = 1145;
+    miniMap.y = 5;
 
-        SDL_RenderCopy(winrend, game->world.background, NULL, &miniMap);
+    SDL_RenderCopy(winrend, game->world.background, NULL, &miniMap);
 
-        SDL_Rect miniMapBoarder;
-        miniMapBoarder.h = (game->viewableWorld.height / 5);
-        miniMapBoarder.w = (game->viewableWorld.width / 5);
-        miniMapBoarder.x = 1145;
-        miniMapBoarder.y = 5;
+    SDL_Rect miniMapBoarder;
+    miniMapBoarder.h = (game->viewableWorld.height / 5);
+    miniMapBoarder.w = (game->viewableWorld.width / 5);
+    miniMapBoarder.x = 1145;
+    miniMapBoarder.y = 5;
 
-        SDL_RenderDrawRect(winrend, &miniMapBoarder);
+    SDL_RenderDrawRect(winrend, &miniMapBoarder);
 
-        SDL_Rect showCurrentView;
-        showCurrentView.h = miniMapBoarder.h / 5;
-        showCurrentView.w = miniMapBoarder.w / 5;
-        showCurrentView.x = game->viewableWorld.centerX;
-        showCurrentView.y = game->viewableWorld.centerY;
+    SDL_Rect showCurrentView;
+    showCurrentView.h = miniMapBoarder.h / 5;
+    showCurrentView.w = miniMapBoarder.w / 5;
+    showCurrentView.x = game->viewableWorld.centerX;
+    showCurrentView.y = game->viewableWorld.centerY;
 
-        SDL_RenderDrawRect(winrend, &showCurrentView);
-}
-
-void CaptureInput( GameState* state ) {
-
-    SDL_Event event;
-    while ( SDL_PollEvent(&event) ) {
-        if ( event.type == SDL_QUIT || (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE) ) {
-            state->quit = 1;
-            return;
-        }
-    }
-
-    state->player.input.keyboard = SDL_GetKeyboardState( &state->player.input.numkeys );
-    int x, y;
-    SDL_GetMouseState( &x, &y );
-    state->player.input.mouse.x = x;
-    state->player.input.mouse.y = y;
+    SDL_RenderDrawRect(winrend, &showCurrentView);
 }
 
 void CreateWorld(SDL_Renderer *winrend, SDL_Texture *background, World *world, int width, int height)

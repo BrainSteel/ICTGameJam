@@ -11,6 +11,9 @@
 
 #include "SDL.h"
 
+#include "Common.h"
+#include "Vector.h"
+
 typedef enum AbilityTypeEnum {
     None,
     Rocket,
@@ -18,10 +21,6 @@ typedef enum AbilityTypeEnum {
     Shield,
     Trash
 } AbilityType;
-
-typedef struct Vector2Struct {
-    float x, y;
-} Vector2;
 
 typedef struct CollisionDataStruct {
     Vector2 loc;
@@ -39,17 +38,18 @@ typedef struct CircleStruct {
 } Circle;
 
 typedef struct ComponentStruct {
+    Circle shape;
+    Vector2 relativepos;
     float health;
     float weight;
     float strength;
-    Circle shape;
     AbilityType ability;
 } Component;
 
 typedef struct EntityStruct {
     Component body;
     Component* components;
-    int component_num;
+    int numcomponent;
 } Entity;
 
 typedef struct InputStruct {
@@ -94,6 +94,7 @@ int run( );
 
 GameState* GME_InitializeDefault( );
 void PLR_InitializeDefault( Player* ref );
+void CMP_InitializeDefault( Component* component );
 void CRC_InitializeDefault( Circle* circ );
 void VCT_InitializeDefault( Vector2* vect );
 
@@ -106,6 +107,6 @@ CollisionData GetCollision( Circle one, Circle two, float elapsedtime );
 
 void UpdateCircle( Circle* circ, float elapsedtime );
 
-void Attach( Player* ref, Component pickup, Vector2 relplayerloc);
+void Attach( Player* ref, Component pickup );
 
 #endif

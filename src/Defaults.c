@@ -22,14 +22,22 @@ GameState* GME_InitializeDefault( ) {
 }
 
 void PLR_InitializeDefault( Player* ref ) {
-    ref->entity.component_num = 0;
+    ref->entity.numcomponent = 0;
     ref->entity.components = NULL;
-    ref->entity.body.ability = None;
-    ref->entity.body.health = 0.0f;
-    ref->entity.body.strength = 0.0f;
-    ref->entity.body.weight = 0.0f;
+    ref->Player_TEX = NULL;
+    ref->input.keyboard = NULL;
+    ref->input.numkeys = 0;
+    VCT_InitializeDefault( &ref->input.mouse );
+    CMP_InitializeDefault( &ref->entity.body );
+}
 
-    CRC_InitializeDefault( &ref->entity.body.shape );
+void CMP_InitializeDefault( Component* component ) {
+    component->ability = None;
+    component->health = 0.0f;
+    component->strength = 0.0f;
+    component->weight = 0.0f;
+    VCT_InitializeDefault( &component->relativepos );
+    CRC_InitializeDefault( &component->shape );
 }
 
 void CRC_InitializeDefault( Circle* circ ) {

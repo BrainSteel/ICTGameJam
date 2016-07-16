@@ -24,6 +24,11 @@ GameState* GME_InitializeDefault( ) {
 void PLR_InitializeDefault( Player* ref ) {
     ref->entity.numcomponent = 0;
     ref->entity.components = NULL;
+    ref->entity.totalmass = 0.0f;
+    ref->entity.angacc = 0.0f;
+    ref->entity.angvel = 0.0f;
+    ref->entity.MOI = 0.0f;
+
     ref->Player_TEX = NULL;
     ref->input.keyboard = NULL;
     ref->input.numkeys = 0;
@@ -35,7 +40,7 @@ void CMP_InitializeDefault( Component* component ) {
     component->ability = None;
     component->health = 0.0f;
     component->strength = 0.0f;
-    component->weight = 0.0f;
+    component->mass = 0.0f;
     VCT_InitializeDefault( &component->relativepos );
     CRC_InitializeDefault( &component->shape );
 }

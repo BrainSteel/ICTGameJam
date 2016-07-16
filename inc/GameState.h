@@ -18,8 +18,6 @@ typedef enum AbilityTypeEnum {
     None,
     Rocket,
     Booster,
-    Shield,
-    Trash
 } AbilityType;
 
 typedef struct CollisionDataStruct {
@@ -41,7 +39,7 @@ typedef struct ComponentStruct {
     Circle shape;
     Vector2 relativepos;
     float health;
-    float weight;
+    float mass;
     float strength;
     AbilityType ability;
 } Component;
@@ -50,6 +48,12 @@ typedef struct EntityStruct {
     Component body;
     Component* components;
     int numcomponent;
+
+    float totalmass;
+
+    float angvel;
+    float angacc;
+    float MOI;
 } Entity;
 
 typedef struct InputStruct {
@@ -83,6 +87,9 @@ typedef struct GameStateStruct {
 
     int quit;
 
+    Circle* bullets;
+    int numbullets;
+
     Entity* enemies;
     int numenemy;
 
@@ -102,11 +109,13 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game );
 void CaptureInput( GameState* state );
 
 void DrawCircle( SDL_Renderer* winrend, Circle circ, int fill );
+void UpdateCircle( Circle* circ, float elapsedtime );
 
 CollisionData GetCollision( Circle one, Circle two, float elapsedtime );
 
-void UpdateCircle( Circle* circ, float elapsedtime );
-
+void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset );
+void UpdatePlayer( Player* player, float elapsedtime );
 void Attach( Player* ref, Component pickup );
+void PerformAction( Player* player, AbilityType action );
 
 #endif

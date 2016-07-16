@@ -17,7 +17,7 @@ void DrawCircle( SDL_Renderer* winrend, Circle circ, int fill ) {
 
     int e = (x * x + y * y - circ.rad * circ.rad) * SHIFTED_1;
     while ( x >= y ) {
-        unsigned int xplusx, xminusx, yplusx, yminusx, xplusy, xminusy, yplusy, yminusy;
+        int xplusx, xminusx, yplusx, yminusx, xplusy, xminusy, yplusy, yminusy;
         xplusx = (circx + x);
         xminusx = (circx - x);
         yplusx = (circy + x);

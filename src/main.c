@@ -69,7 +69,7 @@ int main (int argc, char** argv ) {
     game->viewableWorld.centerX = MAP_WIDTH / 2;
 
     gamelog( "Creating world ...");
-    CreateWorld(winrend, BackgroundTex, &game->world , 5000, 5000);
+    CreateWorld(winrend, BackgroundTex, &game->world, 5000, 5000);
 
     gamelog( "Running game ..." );
     Run( window, winrend, game );
@@ -95,16 +95,28 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
     SDL_SetRenderDrawColor( winrend, 0, 0, 0, SDL_ALPHA_OPAQUE );
 
-    int playerlocX = 500;
-    int playerlocY = 500;
-
     gamelog( "Clearing white to the screen ...");
     SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
     SDL_RenderClear( winrend );
     SDL_RenderPresent( winrend );
 
-    double stepw = SCREEN_WIDTH / 10;
-    double steph = SCREEN_HEIGHT / 10;
+    game->player.entity.body.shape.pos.x = SCREEN_WIDTH / 2;
+    game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
+    game->player.entity.body.shape.rad = 20;
+    Component booster;
+    booster.strength = 1.0;
+    booster.mass = 1.7;
+    booster.ability = Booster;
+    booster.health = 10;
+    booster.shape.rad = 10;
+    booster.shape.pos.x = game->player.entity.body.shape.pos.x + 30;
+    booster.shape.pos.y = game->player.entity.body.shape.pos.y;
+    Attach( &game->player, booster );
+    booster.shape.pos.x = game->player.entity.body.shape.pos.x - 30;
+    Attach( &game->player, booster );
+    booster.shape.pos.x = game->player.entity.body.shape.pos.x;
+    booster.shape.pos.y = game->player.entity.body.shape.pos.y - 30;
+    Attach( &game->player, booster );
 
     gamelog( "Waiting for quit event ..." );
     uint64_t starttime;
@@ -116,63 +128,19 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             break;
         }
 
-        // THIS IS TERRIBLE
-        SDL_Rect worldSourceSnip;
-        worldSourceSnip.h = SCREEN_HEIGHT;
-        worldSourceSnip.w = SCREEN_WIDTH;
-        worldSourceSnip.x = 0;
-        worldSourceSnip.h = 0;
+        // Reset player accelerations
+        game->player.entity.body.shape.acc.x = 0.0f;
+        game->player.entity.body.shape.acc.y = 0.0f;
+        game->player.entity.angacc = 0.0f;
 
-        SDL_Rect worldDestSnip;
-        worldDestSnip.x = 0;
-        worldDestSnip.y = 0;
-        worldDestSnip.h = game->viewableWorld.height;
-        worldDestSnip.w = game->viewableWorld.width;
+        PerformAction( &game->player, Booster );
 
-        SDL_RenderCopy(winrend, game->world.background, NULL, &worldDestSnip);
+        UpdatePlayer( &game->player, 1.0 );
 
-        DrawMiniMap(winrend, game);
-
-        SDL_Rect playerloc;
-        playerloc.h = PLAYER_HEIGHT;
-        playerloc.w = PLAYER_WIDTH;
-        playerloc.x = playerlocX;
-        playerloc.y = playerlocY;
-
-        SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
-
-        SDL_Rect HUD_Title;
-            HUD_Title.x = 799;
-            HUD_Title.y = 50;
-            HUD_Title.w = stepw * 20;
-            HUD_Title.h = steph * 2;
-
-        if(game->player.input.keyboard[SDL_SCANCODE_UP] == 1)
-        {
-            game->viewableWorld.centerY -=1;
-            playerloc.y = playerlocY -= 1;
-            SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
-        }
-        else if(game->player.input.keyboard[SDL_SCANCODE_DOWN] == 1)
-        {
-            game->viewableWorld.centerY +=1;
-            playerloc.y = playerlocY += 1;
-            SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
-        }
-        else if(game->player.input.keyboard[SDL_SCANCODE_RIGHT] == 1)
-        {
-            game->viewableWorld.centerX +=1;
-            playerloc.x = playerlocX += 1;
-            SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
-        }
-        else if(game->player.input.keyboard[SDL_SCANCODE_LEFT] == 1)
-        {
-            game->viewableWorld.centerX -=1;
-            playerloc.x = playerlocX -= 1;
-            SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
-        }
-
-        SDL_RenderPresent(winrend);
+        SDL_RenderClear( winrend );
+        SDL_RenderCopy( winrend, game->world.background, NULL, NULL );
+        DrawPlayer( winrend, &game->player, (Vector2){ 0.0f, 0.0f });
+        SDL_RenderPresent( winrend );
 
         uint64_t endtime = SDL_GetTicks( );
         if ( endtime - starttime < 1000 / FRAMERATE) {

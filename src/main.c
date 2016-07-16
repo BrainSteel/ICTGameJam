@@ -150,25 +150,25 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
         if(game->player.input.keyboard[SDL_SCANCODE_UP] == 1)
         {
-            game->viewableWorld.centerY -=1;
+            //game->viewableWorld.centerY -=1;
             playerloc.y = playerlocY -= 1;
             SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
         }
         else if(game->player.input.keyboard[SDL_SCANCODE_DOWN] == 1)
         {
-            game->viewableWorld.centerY +=1;
+            //game->viewableWorld.centerY +=1;
             playerloc.y = playerlocY += 1;
             SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
         }
         else if(game->player.input.keyboard[SDL_SCANCODE_RIGHT] == 1)
         {
-            game->viewableWorld.centerX +=1;
+            //game->viewableWorld.centerX +=1;
             playerloc.x = playerlocX += 1;
             SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
         }
         else if(game->player.input.keyboard[SDL_SCANCODE_LEFT] == 1)
         {
-            game->viewableWorld.centerX -=1;
+            //game->viewableWorld.centerX -=1;
             playerloc.x = playerlocX -= 1;
             SDL_RenderCopy(winrend, game->player.Player_TEX, NULL, &playerloc);
         }

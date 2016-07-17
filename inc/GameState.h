@@ -104,6 +104,7 @@ typedef struct WorldStruct {
 
     SDL_Texture* globalBackground;
     SDL_Texture* hiddenBackground;
+    SDL_Texture* helpScreen;
 } World;
 
 typedef struct GameStateStruct {

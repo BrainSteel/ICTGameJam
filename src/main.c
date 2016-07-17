@@ -26,6 +26,8 @@
 #define MINIMAP_UPPER_LEFT_X (3 * SCREEN_WIDTH) / 4 //1145
 #define MINIMAP_UPPER_LEFT_Y (3 * SCREEN_HEIGHT) / 4 //5
 
+#define HULL_STRENGTH_BAR_W SCREEN_WIDTH / 2
+
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
 
 int main (int argc, char** argv ) {
@@ -47,6 +49,8 @@ int main (int argc, char** argv ) {
         return -1;
     }
 
+    SDL_SetRenderDrawBlendMode(winrend, SDL_BLENDMODE_BLEND);
+
     SDL_Surface* Background = SDL_LoadBMP("rsc/Background.bmp");
     if(!Background)
     {
@@ -54,6 +58,16 @@ int main (int argc, char** argv ) {
         printf("ERROR-> Background NOT LOADED");
         return 1;
     }
+
+    SDL_Surface* HelpScreen = SDL_LoadBMP(("rsc/HelpScreen.bmp"));
+    if(!HelpScreen)
+    {
+        printf("%s", SDL_GetError());
+        printf("ERROR-> HelpScreen NOT LOADED");
+        return 1;
+    }
+    SDL_Texture* HelpScreenTex = SDL_CreateTextureFromSurface(winrend, HelpScreen);
+
     SDL_PixelFormat* fmt = Background->format;
     Uint8 depth = fmt->BitsPerPixel;
     Uint32 rmask, gmask, bmask, amask;
@@ -78,6 +92,7 @@ int main (int argc, char** argv ) {
     SDL_FreeSurface(Background);
     SDL_FreeSurface(BackgroundScaled);
     SDL_FreeSurface(Player);
+    SDL_FreeSurface(HelpScreen);
 
     // Initialize the game state
     GameState* game = GME_InitializeDefault( );
@@ -85,6 +100,8 @@ int main (int argc, char** argv ) {
     game->player.entity.body.shape.rad = 20;
     game->player.entity.body.shape.pos.x = PLAYER_START_X;
     game->player.entity.body.shape.pos.y = PLAYER_START_Y;
+    game->player.entity.body.health = 100;
+
 
     game->world.height = MAP_HEIGHT;
     game->world.width = MAP_WIDTH;
@@ -99,6 +116,10 @@ int main (int argc, char** argv ) {
     gamelog( "Creating world ...");
     CreateWorld(winrend, BackgroundTex, &game->world, MAP_WIDTH, MAP_HEIGHT);
 
+    gamelog( "Displaying help screen ..." );
+    DisplayHelpScreen( winrend, window, HelpScreenTex, game );
+
+
     gamelog( "Running game ..." );
     Run( window, winrend, game );
 
@@ -108,6 +129,7 @@ int main (int argc, char** argv ) {
 
     gamelog( "Destroying textures ...");
     SDL_DestroyTexture(BackgroundTex);
+    SDL_DestroyTexture(HelpScreenTex);
     FreePlayer( &game->player );
 
     gamelog( "Quitting SDL ..." );
@@ -116,7 +138,74 @@ int main (int argc, char** argv ) {
 }
 // set camera to center of player
 int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
-    game->player.entity.body.shape.pos.x = SCREEN_WIDTH / 2;
+
+    double stepw = SCREEN_WIDTH / 10;
+    double steph = SCREEN_HEIGHT / 10;
+
+    SDL_Surface* HullStrength_TXT = SDL_LoadBMP("rsc/HullStrength_txt.bmp");
+    if(!HullStrength_TXT)
+    {
+        printf("ERROR-> HullStrength_TXT NOT LOADED");
+        return 1;
+    }
+    SDL_SetColorKey(HullStrength_TXT, SDL_TRUE, SDL_MapRGB(HullStrength_TXT->format, 0, 0, 0));
+
+    SDL_Texture* HullStrength_TXTTex = SDL_CreateTextureFromSurface(winrend, HullStrength_TXT);
+    SDL_FreeSurface(HullStrength_TXT);
+
+    SDL_Rect Hull_Strength;
+    Hull_Strength.w = stepw * 5;
+    Hull_Strength.h = steph / 2;
+    Hull_Strength.x = SCREEN_WIDTH / 6;
+    Hull_Strength.y = SCREEN_HEIGHT - 40;
+
+    SDL_Rect HullStrengthtxt;
+    HullStrengthtxt.w = HULL_STRENGTH_BAR_W;
+    HullStrengthtxt.h = steph / 2;
+    HullStrengthtxt.x = SCREEN_WIDTH / 6;
+    HullStrengthtxt.y = SCREEN_HEIGHT - 40;
+
+    SDL_Rect helpScreenRect;
+    helpScreenRect.h = SCREEN_HEIGHT;
+    helpScreenRect.w = SCREEN_WIDTH;
+    helpScreenRect.x = helpScreenRect.y = 0;
+
+
+
+    int HullStrengthDecr = (Hull_Strength.w / 100);
+
+    Hull_Strength.w -= HullStrengthDecr;
+
+
+
+    Hull_Strength.w = game->player.entity.body.health;
+
+
+
+
+
+
+
+
+    SDL_Event event;
+    do
+    {
+        SDL_WaitEvent(&event);
+        if ( event.key.keysym.sym == SDLK_ESCAPE) {
+                break;
+        }
+
+        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(winrend);
+
+        SDL_RenderCopy(winrend, game->world.helpScreen, NULL, &helpScreenRect);
+
+        SDL_RenderPresent( winrend );
+
+    }while( event.key.keysym.sym != SDLK_SPACE );
+
+
+
     game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
     game->player.entity.body.shape.rad = 20;
     Component booster;
@@ -157,9 +246,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     showCurrentView.w = miniMap.w / SCALE_FACTOR_X;
     showCurrentView.x = MINIMAP_UPPER_LEFT_X + ( (PLAYER_START_X / SCALE_FACTOR_X) / SCALE_FACTOR_X );
     showCurrentView.y = MINIMAP_UPPER_LEFT_Y + ( (PLAYER_START_Y / SCALE_FACTOR_Y) / SCALE_FACTOR_Y );
-
-    double stepw = SCREEN_WIDTH / 10;
-    double steph = SCREEN_HEIGHT / 10;
 
     gamelog( "Width: %d, Height: %d", game->world.width, game->world.height );
 
@@ -216,17 +302,20 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         showCurrentView.x = miniMap.x + (game->world.viewableWorld.x / SCALE_FACTOR_X_SQUARED);
         showCurrentView.y = miniMap.y + (game->world.viewableWorld.y / SCALE_FACTOR_Y_SQUARED);
 
-        // TO BE USED
-        /*
-        SDL_Rect HUD_Title;
-        HUD_Title.x = 799;
-        HUD_Title.y = 50;
-        HUD_Title.w = stepw * 20;
-        HUD_Title.h = steph * 2;
-        */
+        ////////////////////////////////////////////////
 
+
+        SDL_SetRenderDrawColor(winrend, 255, 0, 0, SDL_ALPHA_OPAQUE);
+
+        // RENDERING OF THE VISIBLE WORLD PUT ADDTIONAL RENDERS AFTER
         SDL_RenderCopy(winrend, game->world.globalBackground, &game->world.viewableWorld, NULL);
 
+        SDL_SetRenderDrawColor(winrend, 255, 0, 0, 75);
+        SDL_RenderDrawRect(winrend, &Hull_Strength);
+        SDL_RenderFillRect(winrend, &Hull_Strength);
+        SDL_RenderCopy(winrend, HullStrength_TXTTex, NULL, &HullStrengthtxt);
+
+        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
         Vector2 offset;
         offset.x = -game->world.viewableWorld.x;
         offset.y = -game->world.viewableWorld.y;
@@ -259,7 +348,15 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         }
     }
 
+
+    SDL_DestroyTexture(HullStrength_TXTTex);
+
     return 0;
+}
+
+void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Window* window, SDL_Texture *helpScreen, GameState* game)
+{
+    game->world.helpScreen = helpScreen;
 }
 
 void CreateWorld(SDL_Renderer *winrend, SDL_Texture *globalBackground, World *world, int width, int height)

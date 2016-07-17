@@ -529,7 +529,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
-
+        BoosterDirection(winrend);
         FNT_DrawText(winrend, font, "TEST", SCREEN_WIDTH / 6, SCREEN_HEIGHT / 2, 20, 0);
 
         SDL_RenderPresent( winrend );

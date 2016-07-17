@@ -27,10 +27,6 @@ void CaptureInput( GameState* state ) {
 }
 
 void Attach( Entity* entity, Component pickup ) {
-    if (pickup.health <= 0) {
-        gamelog("Uh oh");
-    }
-
     int index;
     for ( index = 0; index < entity->numcomponent; index++ ) {
         if ( entity->components[index].health <= 0) {

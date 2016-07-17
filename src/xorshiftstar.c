@@ -23,6 +23,7 @@ uint64_t xorshift64star( ) {
 }
 
 uint64_t xorshift64star_uniform( uint64_t range ) {
+    if (range == 0 || range == 1) { return 0; }
     uint64_t cutoff = UINT64_MAX - ( UINT64_MAX % range );
     uint64_t result;
     while (( result = xorshift64star( )) > cutoff ) ;

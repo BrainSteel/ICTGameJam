@@ -30,9 +30,11 @@
 #define MINIMAP_UPPER_LEFT_Y (3 * SCREEN_HEIGHT) / 4 //5
 
 
-#define ENEMY_START 10
+#define ENEMY_START 5
 #define ENEMY_MED_STRENGTH 3
 #define ENEMY_DIFF_STRENGTH 1
+#define SPAWN_RATE 100
+#define DIFF_INCREASE 1000
 
 #define COMPONENT_LAUNCHV 5.0
 
@@ -114,6 +116,8 @@ int main (int argc, char** argv ) {
     game->player.entity.body.shape.pos.x = PLAYER_START_X;
     game->player.entity.body.shape.pos.y = PLAYER_START_Y;
     game->player.entity.body.health = 100;
+    game->player.entity.body.strength = 0.75;
+    game->player.entity.body.ability = Booster;
 
 
     game->world.height = MAP_HEIGHT;
@@ -151,6 +155,9 @@ int main (int argc, char** argv ) {
 }
 // set camera to center of player
 int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
+
+    int enemymed = ENEMY_MED_STRENGTH;
+    int enemydiff = ENEMY_MED_STRENGTH;
 
     double stepw = SCREEN_WIDTH / 10;
     double steph = SCREEN_HEIGHT / 10;
@@ -256,7 +263,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     gamelog( "Width: %d, Height: %d", game->world.width, game->world.height );
 
     gamelog( "Waiting for quit event ..." );
-    game->frames = 0;
+    game->frames = 1;
     uint64_t starttime;
     while ( 1 ) {
         starttime = SDL_GetTicks( );
@@ -270,6 +277,16 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         game->player.entity.body.shape.acc.x = 0.0f;
         game->player.entity.body.shape.acc.y = 0.0f;
         game->player.entity.angacc = 0.0f;
+
+        if ( game->frames % SPAWN_RATE == 0 ) {
+            AddEnemy( game, enemymed + xorshift64star_uniform(2 * enemydiff + 1) - enemydiff );
+        }
+
+        if ( game->frames % DIFF_INCREASE == 0 ) {
+            gamelog( "Increasing difficulty..." );
+            enemymed += 2;
+            enemydiff = enemymed / 10 + 1;
+        }
 
         int bulcount;
         for ( bulcount = 0; bulcount < game->player.numbullet; bulcount++ ) {

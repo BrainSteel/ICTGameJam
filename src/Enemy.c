@@ -69,8 +69,8 @@ void AddEnemy( GameState* game, int totalstrength ) {
 
     // Attributes
     result->circling = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
-    result->random = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
-    result->running = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
+    result->random = 0;
+    result->running = 0;
     result->rushing = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
     result->sniping = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
     result->func = FunctionSelector;
@@ -169,6 +169,7 @@ void FillBoosterData( Component* component ) {
     component->shape.rad = 5 + 5 * component->strength;
 }
 
+#define UNINTERRUPT_FRAMES 10
 void AddComponent( GameState* state, Component toAdd ) {
     int i;
     for ( i = 0; i < state->numpickups; i++ ) {
@@ -190,6 +191,7 @@ void AddComponent( GameState* state, Component toAdd ) {
     }
 
     state->pickups[i] = toAdd;
+    state->pickups[i].invinceframes = UNINTERRUPT_FRAMES;
 
     switch( toAdd.ability ) {
         case None:
@@ -285,7 +287,7 @@ static void UseEnemyRockets( Enemy* enemy, GameState* state, Vector2 location ) 
 
             comp->frameused = state->frames;
 
-            newbullet->shape.rad = PLAYER_BULLET_RADIUS;
+            newbullet->shape.rad = PLAYER_BULLET_RADIUS * sqrt( comp->strength );
             newbullet->shape.acc.x = 0.0f;
             newbullet->shape.acc.y = 0.0f;
         }

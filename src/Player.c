@@ -2,7 +2,7 @@
 #include "Common.h"
 #include "GameState.h"
 
-#define MAX_PLAYER_SPEED 14
+#define MAX_PLAYER_SPEED 10
 #define MAX_ANG_VELOCITY 0.2
 
 static Bullet* UseFirstInactiveBullet( Player* player );
@@ -27,6 +27,10 @@ void CaptureInput( GameState* state ) {
 }
 
 void Attach( Entity* entity, Component pickup ) {
+    if (pickup.health <= 0) {
+        gamelog("Uh oh");
+    }
+
     int index;
     for ( index = 0; index < entity->numcomponent; index++ ) {
         if ( entity->components[index].health <= 0) {
@@ -45,12 +49,11 @@ void Attach( Entity* entity, Component pickup ) {
         }
     }
 
-    int last = entity->numcomponent - 1;
-    entity->components[last] = pickup;
-        entity->components[last].relativepos = VectorSubtract( pickup.shape.pos, entity->body.shape.pos );
-        float r = VectorLength( entity->components[last].relativepos );
-        entity->MOI += entity->components[last].mass * r * r;
-        entity->totalmass += entity->components[last].mass;
+    entity->components[index] = pickup;
+    entity->components[index].relativepos = VectorSubtract( pickup.shape.pos, entity->body.shape.pos );
+    float r = VectorLength( entity->components[index].relativepos );
+    entity->MOI += entity->components[index].mass * r * r;
+    entity->totalmass += entity->components[index].mass;
 }
 
 void UpdateEntity( GameState* game, Entity* entity, float elapsedtime ) {
@@ -304,7 +307,7 @@ static void UseRockets( GameState* game ) {
 
                 comp->frameused = game->frames;
 
-                newbullet->shape.rad = PLAYER_BULLET_RADIUS;
+                newbullet->shape.rad = PLAYER_BULLET_RADIUS * sqrt(comp->strength);
                 newbullet->shape.acc.x = 0.0f;
                 newbullet->shape.acc.y = 0.0f;
             }

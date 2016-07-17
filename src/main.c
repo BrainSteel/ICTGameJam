@@ -31,12 +31,12 @@
 
 
 #define ENEMY_START 10
-#define ENEMY_MED_STRENGTH 6
+#define ENEMY_MED_STRENGTH 3
 #define ENEMY_DIFF_STRENGTH 1
 
 #define COMPONENT_LAUNCHV 5.0
 
-#define RETRIEVABLE_CHANCE 3
+#define RETRIEVABLE_CHANCE 1
 
 #define HULL_STRENGTH_BAR_W ((SCREEN_WIDTH / 2))
 
@@ -206,8 +206,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
     }while( event.key.keysym.sym != SDLK_SPACE );
 
-
-
     game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
     game->player.entity.body.shape.rad = 20;
     game->player.entity.body.health = 20;
@@ -291,6 +289,17 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                                 }
                                 if ( enemy->entity.body.health <= 0) {
                                     enemy->alive = 0;
+                                    int deadcomps;
+                                    for (deadcomps = 0; deadcomps < enemy->entity.numcomponent; deadcomps++ ) {
+                                        if (enemy->entity.components[deadcomps].health >= 0) {
+                                            enemy->entity.components[deadcomps].health = -1;
+                                            if (xorshift64star_uniform( RETRIEVABLE_CHANCE ) == 0) {
+                                                Component* comp = &enemy->entity.components[deadcomps];
+                                                comp->shape.vel = VectorScale( VectorNormalize( comp->relativepos ), COMPONENT_LAUNCHV );
+                                                AddComponent( game, *comp );
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -360,11 +369,17 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             break;
         }
 
+        float enemyupdates[game->numenemy];
+        int enemyupdatecount;
+        for ( enemyupdatecount = 0; enemyupdatecount < game->numenemy; enemyupdatecount++ ) {
+            enemyupdates[ enemyupdatecount ] = 1.0;
+        }
+
         float playerupdate = 1.0;
         int compcount = 0;
         for (compcount = 0; compcount < game->numpickups; compcount++ ) {
-            if ( game->pickups[compcount].health >= 0) {
-                CollisionData col = GetCollision( game->pickups[compcount].shape, game->player.entity.body.shape, 1.0 );
+            if ( game->pickups[compcount].health >= 0 && game->pickups[compcount].invinceframes <= 0) {
+                CollisionData col = GetCollision( game->pickups[compcount].shape, game->player.entity.body.shape, playerupdate );
                 if ( col.didoccur ) {
                     UpdatePlayer( game, col.elapsedtime );
                     UpdateCircle( &game->pickups[compcount].shape, col.elapsedtime );
@@ -379,12 +394,40 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                         temp.shape.vel.x = game->player.entity.body.shape.vel.x;
                         temp.shape.vel.y = game->player.entity.body.shape.vel.y;
 
-                        CollisionData col = GetCollision( game->pickups[compcount].shape, temp.shape, 1.0 );
+                        CollisionData col = GetCollision( game->pickups[compcount].shape, temp.shape, playerupdate );
                         if (col.didoccur) {
                             UpdatePlayer( game, col.elapsedtime );
                             UpdateCircle( &game->pickups[compcount].shape, col.elapsedtime );
                             playerupdate -= col.elapsedtime;
                             Attach( &game->player.entity, game->pickups[compcount] );
+                            game->pickups[compcount].health = -1;
+                        }
+                    }
+                }
+
+                int enemycount;
+                for ( enemycount = 0; enemycount < game->numenemy; enemycount++ ) {
+                    CollisionData ecol = GetCollision( game->pickups[compcount].shape, game->enemies[enemycount].entity.body.shape, enemyupdates[enemycount] );
+                    if ( ecol.didoccur ) {
+                        UpdateEnemy(game, &game->enemies[enemycount], ecol.elapsedtime );
+                        UpdateCircle( &game->pickups[compcount].shape, col.elapsedtime );
+                        Attach( &game->enemies[enemycount].entity, game->pickups[compcount] );
+                        enemyupdates[enemycount] -= col.elapsedtime;
+                        game->pickups[compcount].health = -1;
+                    }
+
+                    int entitycomps;
+                    for ( entitycomps = 0; entitycomps < game->enemies[enemycount].entity.numcomponent; entitycomps++ ) {
+                        Component temp = game->enemies[enemycount].entity.components[entitycomps];
+                        temp.shape.vel.x = game->enemies[enemycount].entity.body.shape.vel.x;
+                        temp.shape.vel.y = game->enemies[enemycount].entity.body.shape.vel.y;
+
+                        CollisionData ecol2 = GetCollision( game->pickups[compcount].shape, temp.shape, enemyupdates[enemycount] );
+                        if ( ecol2.didoccur ) {
+                            UpdateEnemy( game, &game->enemies[enemycount], ecol2.elapsedtime );
+                            UpdateCircle( &game->pickups[compcount].shape, ecol2.elapsedtime );
+                            Attach( &game->enemies[enemycount].entity, game->pickups[compcount] );
+                            enemyupdates[enemycount] -= col.elapsedtime;
                             game->pickups[compcount].health = -1;
                         }
                     }
@@ -397,13 +440,16 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         UpdatePlayer( game, playerupdate );
         for ( compcount = 0; compcount < game->numpickups; compcount++ ) {
             if (game->pickups[compcount].health >= 0) {
+                if (game->pickups[compcount].invinceframes >= 0 ) {
+                    game->pickups[compcount].invinceframes -= 1 > game->pickups[compcount].invinceframes ? game->pickups[compcount].invinceframes : 1;
+                }
                 UpdateCircle( &game->pickups[compcount].shape, 1.0 );
             }
         }
         int enemycount;
         for ( enemycount = 0; enemycount < game->numenemy; enemycount++ ) {
             if (game->enemies[enemycount].alive) {
-                UpdateEnemy( game, &game->enemies[enemycount], 1.0 );
+                UpdateEnemy( game, &game->enemies[enemycount], enemyupdates[enemycount] );
             }
         }
         for ( bulcount = 0; bulcount < game->numbullets; bulcount++ ) {

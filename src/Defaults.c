@@ -51,6 +51,8 @@ void CMP_InitializeDefault( Component* component ) {
     component->health = 0.0f;
     component->strength = 0.0f;
     component->mass = 0.0f;
+    component->invinceframes = 0.0f;
+    component->frameused = 0.0f;
     VCT_InitializeDefault( &component->relativepos );
     CRC_InitializeDefault( &component->shape );
 }

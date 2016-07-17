@@ -56,6 +56,7 @@ typedef struct BulletStruct {
 typedef struct ComponentStruct {
     Circle shape;
     Vector2 relativepos;
+    float invinceframes;
     float health;
     float mass;
     float strength;

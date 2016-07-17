@@ -1,11 +1,13 @@
 #include "stdlib.h"
 #include "time.h"
+#include "stdio.h"
 
 #include "SDL.h"
 
 #include "GameState.h"
 #include "xorshiftstar.h"
 #include "Font.h"
+#include "Sound.h"
 
 //#define SCREEN_WIDTH (1920)
 #define SCREEN_WIDTH (1280)
@@ -43,7 +45,10 @@
 void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game);
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
 
+int HIGH_SCORE = 0;
+
 int main (int argc, char** argv ) {
+
 
     xorshiftseed( time( 0 ));
 
@@ -549,6 +554,8 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
+
+
         SDL_RenderPresent( winrend );
         game->frames++;
         uint64_t endtime = SDL_GetTicks( );
@@ -621,16 +628,34 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
             }
         }
 
+
+        game->player.SCORE = game->frames / (FRAMERATE / 2);
+
+        if(game->player.SCORE > HIGH_SCORE)
+        {
+            HIGH_SCORE = game->player.SCORE;
+        }
+
+        char buf[100];
+        char buf2[100];
+
+        sprintf(buf, "%d", game->player.SCORE);
+
+        sprintf(buf2, "%d", HIGH_SCORE);
+
         SDL_SetRenderDrawColor(winrend, 255, 255, 0, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(winrend);
-
-        FNT_DrawText(winrend, font, "RESTART", 10, 10, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
 
         SDL_RenderCopy(winrend, game->world.gameoverScreen, NULL, &gameoverScreenRect);
         SDL_RenderDrawRect(winrend, &restartButtonRect);
         SDL_RenderDrawRect(winrend, &quitButtonRect);
 
-        FNT_DrawText(winrend, font, "RESTART", 50, 50, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
+        FNT_DrawText(winrend, font, "SCORE", 50, 250, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
+        FNT_DrawText(winrend, font, buf, 150, 250, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
+
+
+        FNT_DrawText(winrend, font, "HIGHSCORE", 50, 300, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
+        FNT_DrawText(winrend, font, buf2, 225, 300, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
 
         SDL_RenderPresent( winrend );
 

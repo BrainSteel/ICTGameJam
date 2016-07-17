@@ -109,6 +109,7 @@ typedef struct PlayerStruct {
     Bullet* playerbullets;
     int firstinactivebullet;
     int numbullet;
+    int SCORE;
 } Player;
 
 typedef struct WorldStruct {

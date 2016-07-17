@@ -530,7 +530,8 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         }
 
 
-        FNT_DrawText(winrend, font, "HELLO HELLO HELLO HELLO" , SCREEN_WIDTH / 6, SCREEN_HEIGHT - 40, 100, 0);
+        FNT_DrawText(winrend, font, "TEST", SCREEN_WIDTH / 6, SCREEN_HEIGHT / 2, 20, 0);
+
         SDL_RenderPresent( winrend );
         game->frames++;
         uint64_t endtime = SDL_GetTicks( );

@@ -180,7 +180,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         color.g = 0;
         color.b = 0;
 
-    FNT_Font* font = FNT_InitFont(winrend, "540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
 
     double stepw = SCREEN_WIDTH / 10;
     double steph = SCREEN_HEIGHT / 10;
@@ -550,8 +549,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
-        FNT_DrawText(winrend, font, "TESTTESTTESTTESTTESTTESTTEST", 10, 10, 30, 0);
-
         SDL_RenderPresent( winrend );
         game->frames++;
         uint64_t endtime = SDL_GetTicks( );
@@ -570,6 +567,14 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
 int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, GameState* game)
 {
+    SDL_Color color;
+    color.r = 255;
+    color.g = 0;
+    color.b = 0;
+
+    FNT_Font* font = FNT_InitFont(winrend, "540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
+
+
     game->world.gameoverScreen = gameoverScreen;
 
     SDL_Rect gameoverScreenRect;
@@ -579,15 +584,15 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
 
     SDL_Rect restartButtonRect;
     restartButtonRect.h = 90;
-    restartButtonRect.w = 380;
-    restartButtonRect.x = 140;
-    restartButtonRect.y = 520;
+    restartButtonRect.w = 365;
+    restartButtonRect.x = 195;
+    restartButtonRect.y = 360;
 
     SDL_Rect quitButtonRect;
     quitButtonRect.h = 90;
-    quitButtonRect.w = 380;
-    quitButtonRect.x = 760;
-    quitButtonRect.y = 520;
+    quitButtonRect.w = 365;
+    quitButtonRect.x = 790;
+    quitButtonRect.y = 360;
 
     SDL_Event event;
     do
@@ -619,9 +624,13 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
         SDL_SetRenderDrawColor(winrend, 255, 255, 0, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(winrend);
 
+        FNT_DrawText(winrend, font, "RESTART", 10, 10, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
+
         SDL_RenderCopy(winrend, game->world.gameoverScreen, NULL, &gameoverScreenRect);
         SDL_RenderDrawRect(winrend, &restartButtonRect);
         SDL_RenderDrawRect(winrend, &quitButtonRect);
+
+        FNT_DrawText(winrend, font, "RESTART", 50, 50, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
 
         SDL_RenderPresent( winrend );
 

@@ -21,6 +21,11 @@ typedef enum AbilityTypeEnum {
     NumAbilities
 } AbilityType;
 
+typedef enum EntityTypeEnum {
+    Friend,
+    Foe
+} EntityType;
+
 typedef struct CollisionDataStruct {
     Vector2 loc;
     Vector2 oneloc;
@@ -57,6 +62,8 @@ typedef struct EntityStruct {
     Component body;
     Component* components;
     int numcomponent;
+
+    EntityType type;
 
     float totalmass;
 
@@ -142,13 +149,14 @@ CollisionData GetCollision( Circle one, Circle two, float elapsedtime );
 
 // Player functions
 void CaptureInput( GameState* state );
-void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset );
+void DrawEntity( SDL_Renderer* winrend, Entity* entity, Vector2 offset );
+void DrawComponent( SDL_Renderer* winrend, Component* comp, Vector2 offset );
 void UpdatePlayer( GameState* game, float elapsedtime );
-void Attach( Player* ref, Component pickup );
+void Attach( Entity* entity, Component pickup );
 void PerformAction( GameState* game, AbilityType action );
 void FreePlayer( Player* player );
 
-void AddComponent( GameState* state, AbilityType ability, int strengthmax, Vector2* position );
+void AddComponent( GameState* state, Component toAdd );
 
 void AddEnemy( GameState* state, int totalstrength );
 

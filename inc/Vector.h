@@ -12,6 +12,8 @@
 #include "math.h"
 #include "Common.h"
 
+#define ROOT2_2 0.70710678118f
+
 typedef struct Vector2Struct {
     float x, y;
 } Vector2;

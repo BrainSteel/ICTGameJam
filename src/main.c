@@ -1,15 +1,18 @@
 #include "stdlib.h"
+#include "time.h"
 
 #include "SDL.h"
 
 #include "Common.h"
 #include "GameState.h"
+#include "xorshiftstar.h"
 
 //#define SCREEN_WIDTH (1920)
 #define SCREEN_WIDTH (1280)
 //#define SCREEN_HEIGHT (1080)
 #define SCREEN_HEIGHT (720)
 #define FRAMERATE 40
+#define SCREEN_LAG_BEHIND 4
 
 #define SCALE_FACTOR_X 4
 #define SCALE_FACTOR_Y 4
@@ -26,11 +29,17 @@
 #define MINIMAP_UPPER_LEFT_X (3 * SCREEN_WIDTH) / 4 //1145
 #define MINIMAP_UPPER_LEFT_Y (3 * SCREEN_HEIGHT) / 4 //5
 
+#define ENEMY_START 10
+#define ENEMY_MED_STRENGTH 7
+#define ENEMY_DIFF_STRENGTH 3
+
+#define COMPONENT_LAUNCHV 5.0
+
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
 
 int main (int argc, char** argv ) {
 
-    // NOTE: HiddenBackground is totally useless :p
+    xorshiftseed( time( 0 ));
 
     gamelog( "Initializing SDL ..." );
 
@@ -119,6 +128,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     game->player.entity.body.shape.pos.x = SCREEN_WIDTH / 2;
     game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
     game->player.entity.body.shape.rad = 20;
+    game->player.entity.body.health = 20;
     Component booster;
     booster.strength = 1.0;
     booster.mass = 1.7;
@@ -127,12 +137,12 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     booster.shape.rad = 10;
     booster.shape.pos.x = game->player.entity.body.shape.pos.x + 30;
     booster.shape.pos.y = game->player.entity.body.shape.pos.y;
-    Attach( &game->player, booster );
+    Attach( &game->player.entity, booster );
     booster.shape.pos.x = game->player.entity.body.shape.pos.x - 30;
-    Attach( &game->player, booster );
+    Attach( &game->player.entity, booster );
     booster.shape.pos.x = game->player.entity.body.shape.pos.x;
     booster.shape.pos.y = game->player.entity.body.shape.pos.y - 30;
-    Attach( &game->player, booster );
+    Attach( &game->player.entity, booster );
 
     Component rocket;
     rocket.strength = 1.0;
@@ -142,9 +152,14 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     rocket.shape.rad = 10;
     rocket.shape.pos.x = game->player.entity.body.shape.pos.x - 15;
     rocket.shape.pos.y = game->player.entity.body.shape.pos.y + 15;
-    Attach( &game->player, rocket );
+    Attach( &game->player.entity, rocket );
     rocket.shape.pos.x = game->player.entity.body.shape.pos.x + 15;
-    Attach( &game->player, rocket );
+    Attach( &game->player.entity, rocket );
+
+    int i;
+    for (i = 0; i < ENEMY_START; i++) {
+        AddEnemy( game, ENEMY_MED_STRENGTH + xorshift64star_uniform(ENEMY_DIFF_STRENGTH * 2 + 1) - ENEMY_DIFF_STRENGTH );
+    }
 
     SDL_Rect miniMap;
     miniMap.h = (game->world.viewableWorld.h / SCALE_FACTOR_Y);
@@ -157,9 +172,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     showCurrentView.w = miniMap.w / SCALE_FACTOR_X;
     showCurrentView.x = MINIMAP_UPPER_LEFT_X + ( (PLAYER_START_X / SCALE_FACTOR_X) / SCALE_FACTOR_X );
     showCurrentView.y = MINIMAP_UPPER_LEFT_Y + ( (PLAYER_START_Y / SCALE_FACTOR_Y) / SCALE_FACTOR_Y );
-
-    double stepw = SCREEN_WIDTH / 10;
-    double steph = SCREEN_HEIGHT / 10;
 
     gamelog( "Width: %d, Height: %d", game->world.width, game->world.height );
 
@@ -182,12 +194,87 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         PerformAction( game, Booster );
         PerformAction( game, Rocket );
 
-        UpdatePlayer( game, 1.0 );
+        int bulcount;
+        for ( bulcount = 0; bulcount < game->player.numbullet; bulcount++ ) {
+            if ( game->player.playerbullets[bulcount].active ) {
+                Bullet* bullet = &game->player.playerbullets[bulcount];
+                int enemycount;
+                for (enemycount = 0; enemycount < game->numenemy; enemycount++) {
+                    if ( game->enemies[enemycount].alive ) {
+                        Enemy* enemy = &game->enemies[enemycount];
+                        if (enemy->entity.body.health >= 0) {
+                            CollisionData col = GetCollision(enemy->entity.body.shape, bullet->shape, 1.0);
+                            if (col.didoccur) {
+                                enemy->entity.body.health -= bullet->damage;
+                                bullet->active = 0;
+                                if ( enemy->entity.body.health <= 0) {
+                                    enemy->alive = 0;
+                                }
+                            }
+                        }
+
+                        int compcount;
+                        for ( compcount = 0; compcount < enemy->entity.numcomponent; compcount++ ) {
+                            if (enemy->entity.components[compcount].health > 0) {
+                                CollisionData col = GetCollision( enemy->entity.components[compcount].shape, bullet->shape, 1.0 );
+                                if (col.didoccur) {
+                                    bullet->active = 0;
+                                    enemy->entity.components[compcount].health -= bullet->damage;
+                                    if ( enemy->entity.components[compcount].health <= 0 ) {
+                                        Component* comp = &enemy->entity.components[compcount];
+                                        comp->shape.vel = VectorScale( VectorNormalize( comp->relativepos ), COMPONENT_LAUNCHV );
+                                        AddComponent( game, *comp );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        float playerupdate = 1.0;
+        int compcount = 0;
+        for (compcount = 0; compcount < game->numpickups; compcount++ ) {
+            if ( game->pickups[compcount].health >= 0) {
+                CollisionData col = GetCollision( game->pickups[compcount].shape, game->player.entity.body.shape, 1.0 );
+                if ( col.didoccur ) {
+                    UpdatePlayer( game, col.elapsedtime );
+                    UpdateCircle( &game->pickups[compcount].shape, col.elapsedtime );
+                    playerupdate -= col.elapsedtime;
+                    Attach( &game->player.entity, game->pickups[compcount] );
+                    game->pickups[compcount].health = -1;
+                }
+                else {
+                    int entitycomps;
+                    for ( entitycomps = 0; entitycomps < game->player.entity.numcomponent; entitycomps++ ) {
+                        Component temp = game->player.entity.components[entitycomps];
+                        temp.shape.vel.x = game->player.entity.body.shape.vel.x;
+                        temp.shape.vel.y = game->player.entity.body.shape.vel.y;
+
+                        CollisionData col = GetCollision( game->pickups[compcount].shape, temp.shape, 1.0 );
+                        if (col.didoccur) {
+                            UpdatePlayer( game, col.elapsedtime );
+                            UpdateCircle( &game->pickups[compcount].shape, col.elapsedtime );
+                            playerupdate -= col.elapsedtime;
+                            Attach( &game->player.entity, game->pickups[compcount] );
+                            game->pickups[compcount].health = -1;
+                        }
+                    }
+                }
+            }
+        }
+
+        UpdatePlayer( game, playerupdate );
+        for ( compcount = 0; compcount < game->numpickups; compcount++ ) {
+            if (game->pickups[compcount].health >= 0) {
+                UpdateCircle( &game->pickups[compcount].shape, 1.0 );
+            }
+        }
 
         game->world.centerX = game->player.entity.body.shape.pos.x;
-        game->world.centerX -= game->player.entity.body.shape.vel.x;
+        game->world.centerX -= SCREEN_LAG_BEHIND * game->player.entity.body.shape.vel.x;
         game->world.centerY = game->player.entity.body.shape.pos.y;
-        game->world.centerY -= game->player.entity.body.shape.vel.y;
+        game->world.centerY -= SCREEN_LAG_BEHIND * game->player.entity.body.shape.vel.y;
 
         game->world.viewableWorld.x = game->world.centerX - (SCREEN_WIDTH / 2);
         game->world.viewableWorld.y = game->world.centerY - (SCREEN_HEIGHT / 2);
@@ -230,7 +317,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         Vector2 offset;
         offset.x = -game->world.viewableWorld.x;
         offset.y = -game->world.viewableWorld.y;
-        DrawPlayer( winrend, &game->player, offset );
+        DrawEntity( winrend, &game->player.entity, offset );
 
         SDL_SetRenderDrawColor( winrend, 255, 0, 255, SDL_ALPHA_OPAQUE );
         int i;
@@ -243,10 +330,34 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
+        for ( i = 0; i < game->numpickups; i++ ) {
+            if ( game->pickups[i].health > 0 ) {
+                DrawComponent(winrend, &game->pickups[i], offset);
+            }
+        }
+
+        SDL_SetRenderDrawColor( winrend, 255, 255, 0, SDL_ALPHA_OPAQUE );
+        for ( i = 0; i < game->numenemy; i++ ) {
+            if ( game->enemies[i].alive ) {
+                DrawEntity( winrend, &game->enemies[i].entity, offset );
+            }
+        }
+
+        SDL_RenderCopy(winrend, game->world.globalBackground, NULL, &miniMap);
         SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
         SDL_RenderDrawRect(winrend, &miniMap);
-        SDL_RenderCopy(winrend, game->world.globalBackground, NULL, &miniMap);
         SDL_RenderDrawRect(winrend, &showCurrentView);
+
+        SDL_SetRenderDrawColor( winrend, 255, 0, 0, SDL_ALPHA_OPAQUE );
+        for ( i = 0; i < game->numenemy; i++ ) {
+            if ( game->enemies[i].alive ) {
+                Circle circ;
+                circ.rad = 2;
+                circ.pos.x = game->enemies[i].entity.body.shape.pos.x / SCALE_FACTOR_X_SQUARED + miniMap.x;
+                circ.pos.y = game->enemies[i].entity.body.shape.pos.y / SCALE_FACTOR_Y_SQUARED + miniMap.y;
+                DrawCircle( winrend, circ, 1 );
+            }
+        }
 
         SDL_RenderPresent( winrend );
         game->frames++;

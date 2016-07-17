@@ -8,6 +8,7 @@
 #include "stdint.h"
 
 uint64_t xorshift64star( );
+uint64_t xorshift64star_uniform( uint64_t range );
 void xorshiftseed( uint64_t seed );
 
 #endif

@@ -26,21 +26,31 @@ void CaptureInput( GameState* state ) {
     state->player.input.mouseloc.y = y;
 }
 
-void Attach( Player* ref, Component pickup ) {
-    Component* newlist = realloc( ref->entity.components, sizeof(*newlist) * ( ref->entity.numcomponent + 1 ));
-    if ( newlist ) {
-        ref->entity.components = newlist;
-        ref->entity.numcomponent++;
-        int last = ref->entity.numcomponent - 1;
-        ref->entity.components[last] = pickup;
-        ref->entity.components[last].relativepos = VectorSubtract( pickup.shape.pos, ref->entity.body.shape.pos );
-        float r = VectorLength( ref->entity.components[last].relativepos );
-        ref->entity.MOI += ref->entity.components[last].mass * r * r;
-        ref->entity.totalmass += ref->entity.components[last].mass;
+void Attach( Entity* entity, Component pickup ) {
+    int index;
+    for ( index = 0; index < entity->numcomponent; index++ ) {
+        if ( entity->components[index].health <= 0) {
+            break;
+        }
     }
-    else {
-        gamelog( "Failed to allocate memory for component." );
+
+    if (index == entity->numcomponent) {
+        Component* newlist = realloc( entity->components, sizeof(*newlist) * ( entity->numcomponent + 1 ));
+        if ( newlist ) {
+            entity->components = newlist;
+            entity->numcomponent++;
+        }
+        else {
+            gamelog( "Failed to allocate memory for component." );
+        }
     }
+
+    int last = entity->numcomponent - 1;
+    entity->components[last] = pickup;
+        entity->components[last].relativepos = VectorSubtract( pickup.shape.pos, entity->body.shape.pos );
+        float r = VectorLength( entity->components[last].relativepos );
+        entity->MOI += entity->components[last].mass * r * r;
+        entity->totalmass += entity->components[last].mass;
 }
 
 void UpdatePlayer( GameState* game, float elapsedtime ) {
@@ -119,43 +129,62 @@ static void DeactivateBullet( Bullet* bullet ) {
     bullet->active = 0;
 }
 
-void DrawPlayer( SDL_Renderer* winrend, Player* player, Vector2 offset ) {
+void DrawEntity( SDL_Renderer* winrend, Entity* entity, Vector2 offset ) {
+    if ( entity->body.health <= 0 )
+        return;
+
     // Maintain previous draw color
     Uint8 r, g, b, a;
     SDL_GetRenderDrawColor( winrend, &r, &g, &b, &a );
 
-    // Draw the body in red
-    SDL_SetRenderDrawColor( winrend, 255, 0, 0, SDL_ALPHA_OPAQUE );
-    Circle withoffset = player->entity.body.shape;
+    // If friend, draw the body in dark green.
+    // Else, red.
+    if ( entity->type == Friend ) {
+        SDL_SetRenderDrawColor( winrend, 10, 128, 30, SDL_ALPHA_OPAQUE );
+    }
+    else {
+        SDL_SetRenderDrawColor( winrend, 255, 0, 0, SDL_ALPHA_OPAQUE );
+    }
+
+    Circle withoffset = entity->body.shape;
     withoffset.pos.x += offset.x;
     withoffset.pos.y += offset.y;
     DrawCircle( winrend, withoffset, 1 );
 
     // Draw all components
     int i;
-    for ( i = 0; i < player->entity.numcomponent; i++ ) {
-        Component* comp = &player->entity.components[i];
-        switch ( comp->ability ) {
-            case None:
-                SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
-                break;
-            case Rocket:
-                SDL_SetRenderDrawColor( winrend, 0, 0, 255, SDL_ALPHA_OPAQUE );
-                break;
-            case Booster:
-                SDL_SetRenderDrawColor( winrend, 0, 255, 0, SDL_ALPHA_OPAQUE );
-                break;
-            default:
-                SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
-        }
-
-        withoffset = comp->shape;
-        withoffset.pos.x += offset.x;
-        withoffset.pos.y += offset.y;
-        DrawCircle( winrend, withoffset, 1 );
+    for ( i = 0; i < entity->numcomponent; i++ ) {
+        Component* comp = &entity->components[i];
+        if (comp->health <= 0)
+            continue;
+        DrawComponent( winrend, comp, offset );
     }
 
     SDL_SetRenderDrawColor( winrend, r, g, b, a );
+}
+
+void DrawComponent( SDL_Renderer* winrend, Component* comp, Vector2 offset ) {
+    if (comp->health <= 0)
+        return;
+
+    switch ( comp->ability ) {
+        case None:
+            SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
+            break;
+        case Rocket:
+            SDL_SetRenderDrawColor( winrend, 0, 0, 255, SDL_ALPHA_OPAQUE );
+            break;
+        case Booster:
+            SDL_SetRenderDrawColor( winrend, 0, 255, 0, SDL_ALPHA_OPAQUE );
+            break;
+        default:
+            SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
+    }
+
+    Circle withoffset = comp->shape;
+    withoffset.pos.x += offset.x;
+    withoffset.pos.y += offset.y;
+    DrawCircle( winrend, withoffset, 1 );
 }
 
 static void UseBoosters( Player* player );
@@ -173,8 +202,6 @@ void PerformAction( GameState* game, AbilityType action ) {
             break;
     }
 }
-
-#define ROOT2_2 0.70710678118f
 
 static void UseBoosters( Player* player ) {
 
@@ -219,7 +246,7 @@ static void UseBoosters( Player* player ) {
     int i;
     for ( i = 0; i < player->entity.numcomponent; i++ ) {
         Component* comp = &player->entity.components[i];
-        if ( comp->ability == Booster ) {
+        if ( comp->ability == Booster && comp->health > 0 ) {
             if ( direction & up ) {
                 linearforce.y -= mod * comp->strength;
                 moment += comp->relativepos.x * mod * comp->strength;
@@ -256,7 +283,9 @@ static void UseRockets( GameState* game ) {
         int i;
         for ( i = 0; i < game->player.entity.numcomponent; i++ ) {
             Component* comp = &game->player.entity.components[i];
-            if ( comp->ability == Rocket && (game->frames - comp->frameused) > ROCKET_CONSTANT - ROCKET_CONSTANT_FACTOR * comp->strength ) {
+            if ( comp->ability == Rocket &&
+                 comp->health > 0 &&
+                 (game->frames - comp->frameused) > ROCKET_CONSTANT - ROCKET_CONSTANT_FACTOR * comp->strength ) {
                 Bullet* newbullet = UseFirstInactiveBullet( &game->player );
                 newbullet->active = 1;
                 newbullet->damage = PLAYER_BULLET_DAMAGE;

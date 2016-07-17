@@ -22,11 +22,11 @@ uint64_t xorshift64star( ) {
 	return x * UINT64_C(2685821657736338717);
 }
 
-uint64_t xorshift64star_uniform( uint64_t modulo ) {
-    uint64_t cutoff = UINT64_MAX - ( UINT64_MAX % modulo );
+uint64_t xorshift64star_uniform( uint64_t range ) {
+    uint64_t cutoff = UINT64_MAX - ( UINT64_MAX % range );
     uint64_t result;
     while (( result = xorshift64star( )) > cutoff ) ;
-    return result % modulo;
+    return result % range;
 }
 
 void xorshiftseed( uint64_t seed ) {

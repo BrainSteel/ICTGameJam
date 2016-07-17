@@ -22,6 +22,7 @@ GameState* GME_InitializeDefault( ) {
 }
 
 void PLR_InitializeDefault( Player* ref ) {
+    ref->entity.type = Friend;
     ref->entity.numcomponent = 0;
     ref->entity.components = NULL;
     ref->entity.totalmass = 0.0f;

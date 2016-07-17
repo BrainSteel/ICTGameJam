@@ -6,6 +6,7 @@
 #include "Common.h"
 #include "GameState.h"
 #include "xorshiftstar.h"
+#include "Font.h"
 
 //#define SCREEN_WIDTH (1920)
 #define SCREEN_WIDTH (1280)
@@ -151,6 +152,14 @@ int main (int argc, char** argv ) {
 }
 // set camera to center of player
 int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
+
+
+    SDL_Color color;
+        color.r = 0;
+        color.g = 40;
+        color.b = 70;
+
+    FNT_Font* font = FNT_InitFont(winrend, "540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
 
     double stepw = SCREEN_WIDTH / 10;
     double steph = SCREEN_HEIGHT / 10;
@@ -520,6 +529,8 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
+
+        FNT_DrawText(winrend, font, "HELLO HELLO HELLO HELLO" , SCREEN_WIDTH / 6, SCREEN_HEIGHT - 40, 100, 0);
         SDL_RenderPresent( winrend );
         game->frames++;
         uint64_t endtime = SDL_GetTicks( );

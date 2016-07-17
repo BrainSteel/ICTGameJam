@@ -41,7 +41,7 @@
 
 #define HULL_STRENGTH_BAR_W ((SCREEN_WIDTH / 2))
 
-void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Window* window, SDL_Texture *helpScreen, GameState* game);
+void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game);
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
 
 int main (int argc, char** argv ) {
@@ -82,6 +82,15 @@ int main (int argc, char** argv ) {
     }
     SDL_Texture* HelpScreenTex = SDL_CreateTextureFromSurface(winrend, HelpScreen);
 
+    SDL_Surface* GameOverScreen = SDL_LoadBMP(("rsc/GameOverScreen.bmp"));
+    if(!GameOverScreen)
+    {
+        printf("%s", SDL_GetError());
+        printf("ERROR-> GameOverScreen NOT LOADED");
+        return 1;
+    }
+    SDL_Texture* GameOverScreenTex = SDL_CreateTextureFromSurface(winrend, GameOverScreen);
+
     SDL_PixelFormat* fmt = Background->format;
     Uint8 depth = fmt->BitsPerPixel;
     Uint32 rmask, gmask, bmask, amask;
@@ -107,6 +116,7 @@ int main (int argc, char** argv ) {
     SDL_FreeSurface(BackgroundScaled);
     SDL_FreeSurface(Player);
     SDL_FreeSurface(HelpScreen);
+    SDL_FreeSurface(GameOverScreen);
 
     // Initialize the game state
     GameState* game = GME_InitializeDefault( );
@@ -131,7 +141,7 @@ int main (int argc, char** argv ) {
     CreateWorld(winrend, BackgroundTex, &game->world, MAP_WIDTH, MAP_HEIGHT);
 
     gamelog( "Displaying help screen ..." );
-    DisplayHelpScreen( winrend, window, HelpScreenTex, game );
+    DisplayHelpScreen( winrend, HelpScreenTex, game );
 
 
     gamelog( "Running game ..." );
@@ -145,6 +155,13 @@ int main (int argc, char** argv ) {
     SDL_DestroyTexture(BackgroundTex);
     SDL_DestroyTexture(HelpScreenTex);
     FreePlayer( &game->player );
+
+
+    gamelog( "Displaying GameOver Screen ...");
+    DisplayGameOverScreen( winrend, window, GameOverScreenTex, game );
+
+    gamelog( "Post-Processes ... ");
+    SDL_DestroyTexture(GameOverScreenTex);
 
     gamelog( "Quitting SDL ..." );
     SDL_Quit( );
@@ -548,7 +565,55 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     return 0;
 }
 
-void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Window* window, SDL_Texture *helpScreen, GameState* game)
+void DisplayGameOverScreen(SDL_Renderer* winrend; SDL_Window* window; SDL_Texture *gameoverScreen, GameState* game)
+{
+
+    game->world.gameoverScreen = gameoverScreen;
+
+    SDL_Rect gameoverScreenRect;
+    gameoverScreenRect.h = SCREEN_HEIGHT;
+    gameoverScreenRect.w = SCREEN_WIDTH;
+    gameoverScreenRect.x = gameoverScreenRect.y = 0;
+
+    SDL_Rect restartButtonRect;
+    restartButtonRect.h = 50;
+    restartButtonRect.w = 100;
+    restartButtonRect.x = 200;
+    restartButtonRect.y = 500;
+
+    SDL_Rect quitButtonRect;
+    quitButtonRect.h = 50;
+    quitButtonRect.w = 100;
+    quitButtonRect.x = 200;
+    quitButtonRect.y = 500;
+
+    SDL_Event event;
+    do
+    {
+        SDL_WaitEvent(&event);
+        if (event.type == SDL_MOUSEBUTTONDOWN) {
+            if( (event.button.x > restartButtonRect.x && event.button.x < restartButtonRect.x + restartButtonRect.w) && (event.button.y > restartButtonRect.y && event.button.y < restartButtonRect.y + restartButtonRect.h) )
+            {
+                printf("INSIDE THE RESTART SQUARE");
+            }
+            else if( (event.button.x > quitButtonRect.x && event.button.x < quitButtonRect.x + quitButtonRect.w) && (event.button.y > quitButtonRect.y && event.button.y < quitButtonRect.y + quitButtonRect.h) )
+            {
+                printf("INSIDE THE RESTART SQUARE");
+            }
+        }
+
+        SDL_SetRenderDrawColor(winrend, 255, 255, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(winrend);
+
+        SDL_RenderCopy(winrend, game->world.gameoverScreen, NULL, &gameoverScreenRect);
+
+        SDL_RenderPresent( winrend );
+
+    }while( event.key.keysym.sym != SDLK_SPACE );
+
+}
+
+void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game)
 {
     game->world.helpScreen = helpScreen;
 }

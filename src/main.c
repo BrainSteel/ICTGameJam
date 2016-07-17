@@ -6,6 +6,7 @@
 #include "Common.h"
 #include "GameState.h"
 #include "xorshiftstar.h"
+#include "Font.h"
 
 //#define SCREEN_WIDTH (1920)
 #define SCREEN_WIDTH (1280)
@@ -29,11 +30,14 @@
 #define MINIMAP_UPPER_LEFT_X (3 * SCREEN_WIDTH) / 4 //1145
 #define MINIMAP_UPPER_LEFT_Y (3 * SCREEN_HEIGHT) / 4 //5
 
+#define HEALTH_INCREASE_INTERVAL 60
 
-#define ENEMY_START 5
+#define COMPONENT_START 20
+
+#define ENEMY_START 3
 #define ENEMY_MED_STRENGTH 3
 #define ENEMY_DIFF_STRENGTH 1
-#define SPAWN_RATE 100
+#define SPAWN_RATE 150
 #define DIFF_INCREASE 1000
 
 #define COMPONENT_LAUNCHV 5.0
@@ -41,6 +45,8 @@
 #define RETRIEVABLE_CHANCE 1
 
 #define HULL_STRENGTH_BAR_W ((SCREEN_WIDTH / 2))
+
+#define PLAYER_MAX_HEALTH 100
 
 void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Window* window, SDL_Texture *helpScreen, GameState* game);
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
@@ -115,7 +121,7 @@ int main (int argc, char** argv ) {
     game->player.entity.body.shape.rad = 20;
     game->player.entity.body.shape.pos.x = PLAYER_START_X;
     game->player.entity.body.shape.pos.y = PLAYER_START_Y;
-    game->player.entity.body.health = 100;
+    game->player.entity.body.health = PLAYER_MAX_HEALTH;
     game->player.entity.body.strength = 0.75;
     game->player.entity.body.ability = Booster;
 
@@ -155,9 +161,15 @@ int main (int argc, char** argv ) {
 }
 // set camera to center of player
 int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
-
     int enemymed = ENEMY_MED_STRENGTH;
     int enemydiff = ENEMY_MED_STRENGTH;
+
+    SDL_Color color;
+        color.r = 255;
+        color.g = 0;
+        color.b = 0;
+
+    //FNT_Font* font = FNT_InitFont(winrend, "540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
 
     double stepw = SCREEN_WIDTH / 10;
     double steph = SCREEN_HEIGHT / 10;
@@ -190,12 +202,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     helpScreenRect.w = SCREEN_WIDTH;
     helpScreenRect.x = helpScreenRect.y = 0;
 
-    int HullStrengthDecr = (Hull_Strength.w / 100);
-
-    Hull_Strength.w -= HullStrengthDecr;
-
-    Hull_Strength.w = game->player.entity.body.health;
-
     SDL_Event event;
     do
     {
@@ -215,7 +221,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
     game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
     game->player.entity.body.shape.rad = 20;
-    game->player.entity.body.health = 20;
+    game->player.entity.body.health = PLAYER_MAX_HEALTH;
     Component booster;
     booster.strength = 1.0;
     booster.mass = 1.7;
@@ -246,6 +252,10 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     int i;
     for (i = 0; i < ENEMY_START; i++) {
         AddEnemy( game, ENEMY_MED_STRENGTH + xorshift64star_uniform(ENEMY_DIFF_STRENGTH * 2 + 1) - ENEMY_DIFF_STRENGTH );
+    }
+
+    for ( i = 0; i < COMPONENT_START; i++ ) {
+        ;
     }
 
     SDL_Rect miniMap;
@@ -286,6 +296,13 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             gamelog( "Increasing difficulty..." );
             enemymed += 2;
             enemydiff = enemymed / 10 + 1;
+        }
+
+        if ( game->frames % HEALTH_INCREASE_INTERVAL == 0 ) {
+            game->player.entity.body.health++;
+            if (game->player.entity.body.health > PLAYER_MAX_HEALTH) {
+                game->player.entity.body.health = PLAYER_MAX_HEALTH;
+            }
         }
 
         int bulcount;
@@ -523,8 +540,11 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         SDL_RenderCopy(winrend, game->world.globalBackground, &game->world.viewableWorld, NULL);
 
         SDL_SetRenderDrawColor(winrend, 255, 0, 0, 75);
+        Hull_Strength.w = HULL_STRENGTH_BAR_W;
         SDL_RenderDrawRect(winrend, &Hull_Strength);
+        Hull_Strength.w = (game->player.entity.body.health * HULL_STRENGTH_BAR_W) / PLAYER_MAX_HEALTH;
         SDL_RenderFillRect(winrend, &Hull_Strength);
+        Hull_Strength.w = HULL_STRENGTH_BAR_W;
         SDL_RenderCopy(winrend, HullStrength_TXTTex, NULL, &HullStrengthtxt);
 
         SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
@@ -582,6 +602,9 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                 DrawCircle( winrend, circ, 1 );
             }
         }
+
+        //BoosterDirection(winrend);
+        //FNT_DrawText(winrend, font, "TESTTESTTESTTESTTESTTESTTEST", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 20, 0);
 
         SDL_RenderPresent( winrend );
         game->frames++;

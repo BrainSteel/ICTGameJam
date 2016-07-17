@@ -85,7 +85,7 @@ struct EnemyStruct {
     int sniping;
     int rushing;
     int circling;
-    int running;
+    int scavenger;
     int random;
 
     int phase_duration;

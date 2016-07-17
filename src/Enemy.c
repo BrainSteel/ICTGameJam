@@ -22,6 +22,8 @@ void Dummy( Enemy* entity, GameState* game ) { }
 void FunctionSelector( Enemy* enemy, GameState* state );
 
 #define ATTRIBUTE_MAX 10
+#define ATTRIBUTE_MED 6
+#define ATTRIBUTE_LITE 3
 void AddEnemy( GameState* game, int totalstrength ) {
     Enemy* result = NULL;
     int i;
@@ -69,8 +71,8 @@ void AddEnemy( GameState* game, int totalstrength ) {
 
     // Attributes
     result->circling = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
-    result->random = 0;
-    result->running = 0;
+    result->random = xorshift64star_uniform( ATTRIBUTE_LITE ) + 1;
+    result->scavenger = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
     result->rushing = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
     result->sniping = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
     result->func = FunctionSelector;
@@ -297,14 +299,14 @@ static void UseEnemyRockets( Enemy* enemy, GameState* state, Vector2 location ) 
 static void Sniping( Enemy* enemy, GameState* state );
 static void Rushing( Enemy* enemy, GameState* state );
 static void Circling( Enemy* enemy, GameState* state );
-static void Running( Enemy* enemy, GameState* state );
+static void Scavenger( Enemy* enemy, GameState* state );
 static void Random( Enemy* enemy, GameState* state );
 
 void FunctionSelector( Enemy* enemy, GameState* state ) {
 #define TIME_FACTOR 60
 
     int total = enemy->sniping + enemy->rushing +
-                enemy->circling + enemy->running + enemy->random;
+                enemy->circling + enemy->scavenger + enemy->random;
 
     enemy->phase_start = state->frames;
 
@@ -321,9 +323,9 @@ void FunctionSelector( Enemy* enemy, GameState* state ) {
         enemy->func = Circling;
         enemy->phase_duration = enemy->circling * TIME_FACTOR;
     }
-    else if ( enemy->sniping + enemy->rushing + enemy->circling + enemy->running > choice ) {
-        enemy->func = Running;
-        enemy->phase_duration = enemy->running * TIME_FACTOR;
+    else if ( enemy->sniping + enemy->rushing + enemy->circling + enemy->scavenger > choice ) {
+        enemy->func = Scavenger;
+        enemy->phase_duration = enemy->scavenger * TIME_FACTOR;
     }
     else {
         enemy->func = Random;
@@ -333,13 +335,20 @@ void FunctionSelector( Enemy* enemy, GameState* state ) {
 
 void Sniping( Enemy* enemy, GameState* state ) {
 
-#define SNIPING_RANGE 350
+#define SNIPING_RANGE 500
+#define TOO_FAR 800
     Player* player = &state->player;
     Vector2 sub = VectorSubtract( enemy->entity.body.shape.pos, player->entity.body.shape.pos );
 
     float len = VectorLength( sub );
     if ( len < SNIPING_RANGE ) {
         UseEnemyBoosters( enemy, state, sub );
+    }
+    if ( len > TOO_FAR ) {
+        Vector2 neg;
+        neg.x = -sub.x;
+        neg.y = -sub.y;
+        UseEnemyBoosters( enemy, state, neg );
     }
 
 #define FUTURE_STEPS 2.0
@@ -353,7 +362,12 @@ void Sniping( Enemy* enemy, GameState* state ) {
 void Rushing( Enemy* enemy, GameState* state ) {
     Player* player = &state->player;
     Vector2 sub = VectorSubtract( player->entity.body.shape.pos, enemy->entity.body.shape.pos );
-    UseEnemyBoosters(enemy, state, sub);
+
+    #define MIN_DISTANCE 40
+    if (VectorLength( sub ) > MIN_DISTANCE ) {
+        UseEnemyBoosters(enemy, state, sub);
+    }
+    
     UseEnemyRockets(enemy, state, player->entity.body.shape.pos );
 }
 
@@ -367,10 +381,40 @@ void Circling( Enemy* enemy, GameState* state ) {
     UseEnemyRockets(enemy, state, player->entity.body.shape.pos );
 }
 
-void Running( Enemy* enemy, GameState* state ) {
+void Scavenger( Enemy* enemy, GameState* state ) {
+    Component* closest = NULL;
+    float length = state->world.width;
+
+    int i;
+    for ( i = 0; i < state->numpickups; i++ ) {
+        if ( closest == NULL ) {
+            closest = &state->pickups[i];
+            length = VectorLength( VectorSubtract( enemy->entity.body.shape.pos, closest->shape.pos ));
+            continue;
+        }
+        else {
+            Component* testcomp = &state->pickups[i];
+            float testlen = VectorLength( VectorSubtract( enemy->entity.body.shape.pos, testcomp->shape.pos ));
+            if (testlen < length) {
+                length = testlen;
+                closest = testcomp;
+            }
+        }
+    }
+
+    if ( closest )
+    {
+        Vector2 sub = VectorSubtract( closest->shape.pos, enemy->entity.body.shape.pos );
+        UseEnemyBoosters( enemy, state, sub );
+    }
+
+#define RANGE 200
+
     Player* player = &state->player;
-    Vector2 sub = VectorSubtract( enemy->entity.body.shape.pos, player->entity.body.shape.pos );
-    UseEnemyBoosters( enemy, state, sub );
+    Vector2 pvect = VectorSubtract( enemy->entity.body.shape.pos, player->entity.body.shape.pos );
+    if ( VectorLength( pvect ) <= RANGE ) {
+        UseEnemyRockets( enemy, state, player->entity.body.shape.pos );
+    }
 }
 
 void Random( Enemy* enemy, GameState* state ) {

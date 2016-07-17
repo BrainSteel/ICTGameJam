@@ -3,7 +3,6 @@
 
 #include "SDL.h"
 
-#include "Common.h"
 #include "GameState.h"
 #include "xorshiftstar.h"
 #include "Font.h"
@@ -118,8 +117,12 @@ int main (int argc, char** argv ) {
     SDL_FreeSurface(HelpScreen);
     SDL_FreeSurface(GameOverScreen);
 
+    GameState* game;
+
     // Initialize the game state
-    GameState* game = GME_InitializeDefault( );
+    restartLoc:
+
+    game = GME_InitializeDefault( );
     game->player.Player_TEX = PlayerTex;
     game->player.entity.body.shape.rad = 20;
     game->player.entity.body.shape.pos.x = PLAYER_START_X;
@@ -140,12 +143,19 @@ int main (int argc, char** argv ) {
     gamelog( "Creating world ...");
     CreateWorld(winrend, BackgroundTex, &game->world, MAP_WIDTH, MAP_HEIGHT);
 
+
+
     gamelog( "Displaying help screen ..." );
     DisplayHelpScreen( winrend, HelpScreenTex, game );
 
 
     gamelog( "Running game ..." );
     Run( window, winrend, game );
+
+    gamelog( "Displaying GameOver Screen ...");
+    int result = DisplayGameOverScreen( winrend, GameOverScreenTex, game );
+
+    if(result == 2){goto restartLoc;}
 
     gamelog( "Destroying window and renderer ...");
     SDL_DestroyWindow( window );
@@ -154,14 +164,8 @@ int main (int argc, char** argv ) {
     gamelog( "Destroying textures ...");
     SDL_DestroyTexture(BackgroundTex);
     SDL_DestroyTexture(HelpScreenTex);
-    FreePlayer( &game->player );
-
-
-    gamelog( "Displaying GameOver Screen ...");
-    DisplayGameOverScreen( winrend, window, GameOverScreenTex, game );
-
-    gamelog( "Post-Processes ... ");
     SDL_DestroyTexture(GameOverScreenTex);
+    FreePlayer( &game->player );
 
     gamelog( "Quitting SDL ..." );
     SDL_Quit( );
@@ -535,7 +539,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         SDL_RenderDrawRect(winrend, &miniMap);
         SDL_RenderDrawRect(winrend, &showCurrentView);
 
-        SDL_SetRenderDrawColor( winrend, 255, 0, 0, SDL_ALPHA_OPAQUE );
+        SDL_SetRenderDrawColor( winrend, 255, 100, 100, SDL_ALPHA_OPAQUE );
         for ( i = 0; i < game->numenemy; i++ ) {
             if ( game->enemies[i].alive ) {
                 Circle circ;
@@ -546,8 +550,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
-        BoosterDirection(winrend);
-        FNT_DrawText(winrend, font, "TESTTESTTESTTESTTESTTESTTEST", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 20, 0);
+        FNT_DrawText(winrend, font, "TESTTESTTESTTESTTESTTESTTEST", 10, 10, 30, 0);
 
         SDL_RenderPresent( winrend );
         game->frames++;
@@ -565,9 +568,8 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     return 0;
 }
 
-void DisplayGameOverScreen(SDL_Renderer* winrend; SDL_Window* window; SDL_Texture *gameoverScreen, GameState* game)
+int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, GameState* game)
 {
-
     game->world.gameoverScreen = gameoverScreen;
 
     SDL_Rect gameoverScreenRect;
@@ -576,16 +578,16 @@ void DisplayGameOverScreen(SDL_Renderer* winrend; SDL_Window* window; SDL_Textur
     gameoverScreenRect.x = gameoverScreenRect.y = 0;
 
     SDL_Rect restartButtonRect;
-    restartButtonRect.h = 50;
-    restartButtonRect.w = 100;
-    restartButtonRect.x = 200;
-    restartButtonRect.y = 500;
+    restartButtonRect.h = 90;
+    restartButtonRect.w = 380;
+    restartButtonRect.x = 140;
+    restartButtonRect.y = 520;
 
     SDL_Rect quitButtonRect;
-    quitButtonRect.h = 50;
-    quitButtonRect.w = 100;
-    quitButtonRect.x = 200;
-    quitButtonRect.y = 500;
+    quitButtonRect.h = 90;
+    quitButtonRect.w = 380;
+    quitButtonRect.x = 760;
+    quitButtonRect.y = 520;
 
     SDL_Event event;
     do
@@ -594,11 +596,23 @@ void DisplayGameOverScreen(SDL_Renderer* winrend; SDL_Window* window; SDL_Textur
         if (event.type == SDL_MOUSEBUTTONDOWN) {
             if( (event.button.x > restartButtonRect.x && event.button.x < restartButtonRect.x + restartButtonRect.w) && (event.button.y > restartButtonRect.y && event.button.y < restartButtonRect.y + restartButtonRect.h) )
             {
-                printf("INSIDE THE RESTART SQUARE");
+                free( game->bullets );
+                free( game->pickups );
+
+                int i;
+                for(i = 0; i < game->numenemy; i++)
+                {
+                    FreeEnemy(( &game->enemies[i] ));
+                }
+                free(game->enemies);
+                FreePlayer( &game->player );
+
+                return 2;
+
             }
             else if( (event.button.x > quitButtonRect.x && event.button.x < quitButtonRect.x + quitButtonRect.w) && (event.button.y > quitButtonRect.y && event.button.y < quitButtonRect.y + quitButtonRect.h) )
             {
-                printf("INSIDE THE RESTART SQUARE");
+                break;
             }
         }
 
@@ -606,10 +620,14 @@ void DisplayGameOverScreen(SDL_Renderer* winrend; SDL_Window* window; SDL_Textur
         SDL_RenderClear(winrend);
 
         SDL_RenderCopy(winrend, game->world.gameoverScreen, NULL, &gameoverScreenRect);
+        SDL_RenderDrawRect(winrend, &restartButtonRect);
+        SDL_RenderDrawRect(winrend, &quitButtonRect);
 
         SDL_RenderPresent( winrend );
 
     }while( event.key.keysym.sym != SDLK_SPACE );
+
+    return 1;
 
 }
 

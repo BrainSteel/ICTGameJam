@@ -392,3 +392,12 @@ void UpdateEnemy( GameState* state, Enemy* enemy, float elapsedtime ) {
 
     UpdateEntity( state, &enemy->entity, elapsedtime );
 }
+
+
+
+void FreeEnemy( Enemy* enemy ) {
+    if ( enemy->entity.numcomponent > 0 ) {
+        free( enemy->entity.components );
+    }
+}
+

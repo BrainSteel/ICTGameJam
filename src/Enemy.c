@@ -18,7 +18,10 @@ static const Vector2 reloptions[8] = {
 };
 
 Component GetComponentFrom( Entity host, AbilityType ability, int strength, Vector2 relativepos );
+void Dummy( Enemy* entity, GameState* game ) { }
+void FunctionSelector( Enemy* enemy, GameState* state );
 
+#define ATTRIBUTE_MAX 10
 void AddEnemy( GameState* game, int totalstrength ) {
     Enemy* result = NULL;
     int i;
@@ -53,7 +56,7 @@ void AddEnemy( GameState* game, int totalstrength ) {
     result->entity.MOI = 0;
     result->entity.totalmass = 5 + xorshift64star_uniform( 10 );
     result->entity.body.mass = result->entity.totalmass;
-    result->entity.body.health = 5 + xorshift64star_uniform( 10 );
+    result->entity.body.health = totalstrength * 4 + xorshift64star_uniform( totalstrength );
     result->entity.body.strength = 1 + xorshift64star_uniform( 2 );
     result->entity.body.ability = Booster;
     result->entity.body.shape.rad = 15 + xorshift64star_uniform( 10 );
@@ -63,6 +66,14 @@ void AddEnemy( GameState* game, int totalstrength ) {
     result->entity.body.shape.vel.y = -15 - xorshift64star_uniform( 5 );
     result->entity.body.shape.acc.x = 0.0f;
     result->entity.body.shape.acc.y = 0.0f;
+
+    // Attributes
+    result->circling = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
+    result->random = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
+    result->running = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
+    result->rushing = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
+    result->sniping = xorshift64star_uniform( ATTRIBUTE_MAX ) + 1;
+    result->func = FunctionSelector;
 
     // We now have a valid enemy to manipulate.
     int currentstrength = 0;
@@ -193,4 +204,191 @@ void AddComponent( GameState* state, Component toAdd ) {
         default:
             break;
     }
+}
+
+static void UseEnemyBoosters( Enemy* enemy, GameState* state, Vector2 direction ) {
+
+    direction = VectorNormalize( direction );
+
+    Vector2 linearforce = {0.0f, 0.0f};
+    float moment = 0.0f;
+
+    int i;
+    for ( i = 0; i < enemy->entity.numcomponent; i++ ) {
+        Component* comp = &enemy->entity.components[i];
+        if ( comp->health >= 0 ) {
+            linearforce.x += direction.x * comp->strength;
+            linearforce.y += direction.y * comp->strength;
+
+            moment -= direction.y * comp->relativepos.x * comp->strength;
+            moment += direction.x * comp->relativepos.y * comp->strength;
+        }
+    }
+
+    enemy->entity.body.shape.acc.x = linearforce.x / enemy->entity.totalmass;
+    enemy->entity.body.shape.acc.y = linearforce.y / enemy->entity.totalmass;
+    enemy->entity.angacc = moment / enemy->entity.MOI;
+}
+
+#define ENEMY_BATCH_SIZE 40
+static void AllocEnemyBulletBatch( GameState* state ) {
+    Bullet* bullets = realloc( state->bullets, (state->numbullets + ENEMY_BATCH_SIZE) * sizeof(*bullets) );
+    if ( bullets ) {
+        state->bullets = bullets;
+        int i;
+        for ( i = state->numbullets; i < state->numbullets + ENEMY_BATCH_SIZE; i++ ) {
+            BLT_InitializeDefault( &state->bullets[i] );
+        }
+        state->numbullets += ENEMY_BATCH_SIZE;
+    }
+}
+
+static Bullet* UseFirstInactiveEnemyBullet( GameState* state ) {
+    if ( state->numbullets <= state->firstinactivebullet ) {
+        AllocEnemyBulletBatch( state );
+        Bullet* result = &state->bullets[state->firstinactivebullet];
+        state->firstinactivebullet++;
+        return result;
+    }
+    else {
+        Bullet* result = &state->bullets[state->firstinactivebullet];
+        for ( state->firstinactivebullet++; state->firstinactivebullet < state->numbullets; state->firstinactivebullet++ ) {
+            if ( !state->bullets[state->firstinactivebullet].active ) {
+                break;
+            }
+        }
+
+        if ( state->firstinactivebullet == state->numbullets ) {
+            AllocEnemyBulletBatch( state );
+        }
+
+        return result;
+    }
+}
+
+static void UseEnemyRockets( Enemy* enemy, GameState* state, Vector2 location ) {
+    int i;
+    for ( i = 0; i < enemy->entity.numcomponent; i++ ) {
+        Component* comp = &enemy->entity.components[i];
+        if ( comp->ability == Rocket &&
+             comp->health > 0 &&
+             (state->frames - comp->frameused) > ROCKET_CONSTANT - ROCKET_CONSTANT_FACTOR * comp->strength ) {
+            Bullet* newbullet = UseFirstInactiveEnemyBullet( state );
+            newbullet->active = 1;
+            newbullet->damage = PLAYER_BULLET_DAMAGE;
+            newbullet->lifetime = PLAYER_BULLET_LIFETIME;
+            newbullet->shape.pos = comp->shape.pos;
+            Vector2 dir = VectorNormalize( VectorSubtract( location, comp->shape.pos ));
+            newbullet->shape.vel = VectorScale( dir, ENEMY_BULLET_SPEED );
+            newbullet->shape.vel.x += enemy->entity.body.shape.vel.x;
+            newbullet->shape.vel.y += enemy->entity.body.shape.vel.y;
+
+            comp->frameused = state->frames;
+
+            newbullet->shape.rad = PLAYER_BULLET_RADIUS;
+            newbullet->shape.acc.x = 0.0f;
+            newbullet->shape.acc.y = 0.0f;
+        }
+    }
+}
+
+static void Sniping( Enemy* enemy, GameState* state );
+static void Rushing( Enemy* enemy, GameState* state );
+static void Circling( Enemy* enemy, GameState* state );
+static void Running( Enemy* enemy, GameState* state );
+static void Random( Enemy* enemy, GameState* state );
+
+void FunctionSelector( Enemy* enemy, GameState* state ) {
+#define TIME_FACTOR 60
+
+    int total = enemy->sniping + enemy->rushing +
+                enemy->circling + enemy->running + enemy->random;
+
+    enemy->phase_start = state->frames;
+
+    uint64_t choice = xorshift64star_uniform( total );
+    if ( enemy->sniping > choice ) {
+        enemy->func = Sniping;
+        enemy->phase_duration = enemy->sniping * TIME_FACTOR;
+    }
+    else if ( enemy->sniping + enemy->rushing > choice ) {
+        enemy->func = Rushing;
+        enemy->phase_duration = enemy->rushing * TIME_FACTOR;
+    }
+    else if ( enemy->sniping + enemy->rushing + enemy->circling > choice ) {
+        enemy->func = Circling;
+        enemy->phase_duration = enemy->circling * TIME_FACTOR;
+    }
+    else if ( enemy->sniping + enemy->rushing + enemy->circling + enemy->running > choice ) {
+        enemy->func = Running;
+        enemy->phase_duration = enemy->running * TIME_FACTOR;
+    }
+    else {
+        enemy->func = Random;
+        enemy->phase_duration = enemy->random * TIME_FACTOR;
+    }
+}
+
+void Sniping( Enemy* enemy, GameState* state ) {
+
+#define SNIPING_RANGE 350
+    Player* player = &state->player;
+    Vector2 sub = VectorSubtract( enemy->entity.body.shape.pos, player->entity.body.shape.pos );
+
+    float len = VectorLength( sub );
+    if ( len < SNIPING_RANGE ) {
+        UseEnemyBoosters( enemy, state, sub );
+    }
+
+#define FUTURE_STEPS 2.0
+    Circle pcirc = player->entity.body.shape;
+    Vector2 future;
+    future.x = pcirc.pos.x + FUTURE_STEPS * pcirc.vel.x + 0.5 * FUTURE_STEPS * FUTURE_STEPS * pcirc.acc.x;
+    future.y = pcirc.pos.y + FUTURE_STEPS * pcirc.vel.y + 0.5 * FUTURE_STEPS * FUTURE_STEPS * pcirc.acc.y;
+    UseEnemyRockets( enemy, state, future );
+}
+
+void Rushing( Enemy* enemy, GameState* state ) {
+    Player* player = &state->player;
+    Vector2 sub = VectorSubtract( player->entity.body.shape.pos, enemy->entity.body.shape.pos );
+    UseEnemyBoosters(enemy, state, sub);
+    UseEnemyRockets(enemy, state, player->entity.body.shape.pos );
+}
+
+void Circling( Enemy* enemy, GameState* state ) {
+    Player* player = &state->player;
+    Vector2 sub = VectorSubtract( player->entity.body.shape.pos, enemy->entity.body.shape.pos );
+    Vector2 perp;
+    perp.x = -sub.y;
+    perp.y = sub.x;
+    UseEnemyBoosters( enemy, state, sub );
+    UseEnemyRockets(enemy, state, player->entity.body.shape.pos );
+}
+
+void Running( Enemy* enemy, GameState* state ) {
+    Player* player = &state->player;
+    Vector2 sub = VectorSubtract( enemy->entity.body.shape.pos, player->entity.body.shape.pos );
+    UseEnemyBoosters( enemy, state, sub );
+}
+
+void Random( Enemy* enemy, GameState* state ) {
+#define RAND_RADIUS 100
+    Vector2 random1, random2;
+    random1.x = xorshift64star_uniform( 2 * RAND_RADIUS + 1) - RAND_RADIUS;
+    random1.y = xorshift64star_uniform( 2 * RAND_RADIUS + 1) - RAND_RADIUS;
+    random2.x = xorshift64star_uniform( 2 * RAND_RADIUS + 1) - RAND_RADIUS;
+    random2.y = xorshift64star_uniform( 2 * RAND_RADIUS + 1) - RAND_RADIUS;
+    UseEnemyBoosters( enemy, state, random1 );
+    UseEnemyRockets( enemy, state, random2 );
+}
+
+void UpdateEnemy( GameState* state, Enemy* enemy, float elapsedtime ) {
+
+    if ( enemy->phase_duration + enemy->phase_start < state->frames ) {
+        enemy->func = FunctionSelector;
+    }
+
+    enemy->func( enemy, state );
+
+    UpdateEntity( state, &enemy->entity, elapsedtime );
 }

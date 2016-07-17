@@ -31,10 +31,12 @@
 
 
 #define ENEMY_START 10
-#define ENEMY_MED_STRENGTH 7
-#define ENEMY_DIFF_STRENGTH 3
+#define ENEMY_MED_STRENGTH 6
+#define ENEMY_DIFF_STRENGTH 1
 
 #define COMPONENT_LAUNCHV 5.0
+
+#define RETRIEVABLE_CHANCE 3
 
 #define HULL_STRENGTH_BAR_W ((SCREEN_WIDTH / 2))
 
@@ -181,22 +183,11 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     helpScreenRect.w = SCREEN_WIDTH;
     helpScreenRect.x = helpScreenRect.y = 0;
 
-
-
     int HullStrengthDecr = (Hull_Strength.w / 100);
 
     Hull_Strength.w -= HullStrengthDecr;
 
-
-
     Hull_Strength.w = game->player.entity.body.health;
-
-
-
-
-
-
-
 
     SDL_Event event;
     do
@@ -282,9 +273,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         game->player.entity.body.shape.acc.y = 0.0f;
         game->player.entity.angacc = 0.0f;
 
-        PerformAction( game, Booster );
-        PerformAction( game, Rocket );
-
         int bulcount;
         for ( bulcount = 0; bulcount < game->player.numbullet; bulcount++ ) {
             if ( game->player.playerbullets[bulcount].active ) {
@@ -298,6 +286,9 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                             if (col.didoccur) {
                                 enemy->entity.body.health -= bullet->damage;
                                 bullet->active = 0;
+                                if (bulcount < game->player.firstinactivebullet) {
+                                    game->player.firstinactivebullet = bulcount;
+                                }
                                 if ( enemy->entity.body.health <= 0) {
                                     enemy->alive = 0;
                                 }
@@ -310,11 +301,16 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                                 CollisionData col = GetCollision( enemy->entity.components[compcount].shape, bullet->shape, 1.0 );
                                 if (col.didoccur) {
                                     bullet->active = 0;
+                                    if (bulcount < game->player.firstinactivebullet) {
+                                        game->player.firstinactivebullet = bulcount;
+                                    }
                                     enemy->entity.components[compcount].health -= bullet->damage;
                                     if ( enemy->entity.components[compcount].health <= 0 ) {
                                         Component* comp = &enemy->entity.components[compcount];
-                                        comp->shape.vel = VectorScale( VectorNormalize( comp->relativepos ), COMPONENT_LAUNCHV );
-                                        AddComponent( game, *comp );
+                                        if (xorshift64star_uniform(RETRIEVABLE_CHANCE) == 0) {
+                                            comp->shape.vel = VectorScale( VectorNormalize( comp->relativepos ), COMPONENT_LAUNCHV );
+                                            AddComponent( game, *comp );
+                                        }
                                     }
                                 }
                             }
@@ -323,6 +319,47 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                 }
             }
         }
+        for (bulcount = 0; bulcount < game->numbullets; bulcount++ ) {
+            Bullet* bullet = &game->bullets[bulcount];
+            if (bullet->active) {
+                if (game->player.entity.body.health >= 0) {
+                    CollisionData col = GetCollision(game->player.entity.body.shape, bullet->shape, 1.0);
+                    if (col.didoccur) {
+                        game->player.entity.body.health -= bullet->damage;
+                        bullet->active = 0;
+                        if (bulcount < game->firstinactivebullet) {
+                            game->firstinactivebullet = bulcount;
+                        }
+                    }
+                }
+
+                int compcount;
+                for ( compcount = 0; compcount < game->player.entity.numcomponent; compcount++ ) {
+                    if (game->player.entity.components[compcount].health > 0) {
+                        CollisionData col = GetCollision( game->player.entity.components[compcount].shape, bullet->shape, 1.0 );
+                        if (col.didoccur) {
+                            bullet->active = 0;
+                            if (bulcount < game->firstinactivebullet) {
+                                game->firstinactivebullet = bulcount;
+                            }
+                            game->player.entity.components[compcount].health -= bullet->damage;
+                            if ( game->player.entity.components[compcount].health <= 0 ) {
+                                Component* comp = &game->player.entity.components[compcount];
+                                if (xorshift64star_uniform(RETRIEVABLE_CHANCE) == 0) {
+                                    comp->shape.vel = VectorScale( VectorNormalize( comp->relativepos ), COMPONENT_LAUNCHV );
+                                    AddComponent( game, *comp );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (game->player.entity.body.health <= 0) {
+            break;
+        }
+
         float playerupdate = 1.0;
         int compcount = 0;
         for (compcount = 0; compcount < game->numpickups; compcount++ ) {
@@ -355,10 +392,30 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
+        PerformAction( game, Booster );
+        PerformAction( game, Rocket );
         UpdatePlayer( game, playerupdate );
         for ( compcount = 0; compcount < game->numpickups; compcount++ ) {
             if (game->pickups[compcount].health >= 0) {
                 UpdateCircle( &game->pickups[compcount].shape, 1.0 );
+            }
+        }
+        int enemycount;
+        for ( enemycount = 0; enemycount < game->numenemy; enemycount++ ) {
+            if (game->enemies[enemycount].alive) {
+                UpdateEnemy( game, &game->enemies[enemycount], 1.0 );
+            }
+        }
+        for ( bulcount = 0; bulcount < game->numbullets; bulcount++ ) {
+            if (game->bullets[bulcount].active) {
+                UpdateCircle( &game->bullets[bulcount].shape, 1.0 );
+                game->bullets[bulcount].lifetime -= 1.0;
+                if (game->bullets[bulcount].lifetime <= 0) {
+                    game->bullets[bulcount].active = 0;
+                    if (bulcount < game->firstinactivebullet) {
+                        game->firstinactivebullet = bulcount;
+                    }
+                }
             }
         }
 
@@ -424,6 +481,16 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
+        SDL_SetRenderDrawColor( winrend, 255, 255, 0, SDL_ALPHA_OPAQUE );
+        for ( i = 0; i < game->numbullets; i++ ) {
+            if ( game->bullets[i].active ) {
+                Circle withcontext = game->bullets[i].shape;
+                withcontext.pos.x += offset.x;
+                withcontext.pos.y += offset.y;
+                DrawCircle( winrend, withcontext, 1);
+            }
+        }
+
         for ( i = 0; i < game->numpickups; i++ ) {
             if ( game->pickups[i].health > 0 ) {
                 DrawComponent(winrend, &game->pickups[i], offset);
@@ -463,7 +530,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             gamelog( "Frame took longer than expected: %llu ms", endtime - starttime );
         }
     }
-
 
     SDL_DestroyTexture(HullStrength_TXTTex);
 

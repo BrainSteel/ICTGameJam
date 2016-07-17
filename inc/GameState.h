@@ -14,6 +14,11 @@
 #include "Common.h"
 #include "Vector.h"
 
+typedef struct EnemyStruct Enemy;
+typedef struct GameStateStruct GameState;
+
+typedef void (*EnemyFunction)( Enemy* enemy, GameState* state );
+
 typedef enum AbilityTypeEnum {
     None = 0,
     Rocket,
@@ -72,10 +77,21 @@ typedef struct EntityStruct {
     float MOI;
 } Entity;
 
-typedef struct EnemyStruct {
+struct EnemyStruct {
     Entity entity;
     int alive;
-} Enemy;
+
+    int sniping;
+    int rushing;
+    int circling;
+    int running;
+    int random;
+
+    int phase_duration;
+    uint64_t phase_start;
+
+    EnemyFunction func;
+};
 
 typedef struct InputStruct {
     int numkeys;
@@ -94,15 +110,6 @@ typedef struct PlayerStruct {
     int numbullet;
 } Player;
 
-/*
-typedef struct WorldStruct {
-    int width;
-    int height;
-
-    SDL_Texture* background;
-} World;
-*/
-
 typedef struct WorldStruct {
     int width, height;
     int centerX, centerY;
@@ -114,7 +121,7 @@ typedef struct WorldStruct {
     SDL_Texture* helpScreen;
 } World;
 
-typedef struct GameStateStruct {
+struct GameStateStruct {
     uint64_t frames;
 
     Player player;
@@ -122,15 +129,16 @@ typedef struct GameStateStruct {
 
     int quit;
 
-    Circle* bullets;
+    Bullet* bullets;
     int numbullets;
+    int firstinactivebullet;
 
     Enemy* enemies;
     int numenemy;
 
     Component* pickups;
     int numpickups;
-} GameState;
+};
 
 // Initialization functions
 GameState* GME_InitializeDefault( );
@@ -152,7 +160,9 @@ CollisionData GetCollision( Circle one, Circle two, float elapsedtime );
 void CaptureInput( GameState* state );
 void DrawEntity( SDL_Renderer* winrend, Entity* entity, Vector2 offset );
 void DrawComponent( SDL_Renderer* winrend, Component* comp, Vector2 offset );
+void UpdateEntity( GameState* game, Entity* entity, float elapsedtime );
 void UpdatePlayer( GameState* game, float elapsedtime );
+void UpdateEnemy( GameState* game, Enemy* enemy, float elapsedtime );
 void Attach( Entity* entity, Component pickup );
 void PerformAction( GameState* game, AbilityType action );
 void FreePlayer( Player* player );

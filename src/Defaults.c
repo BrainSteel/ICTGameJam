@@ -18,6 +18,10 @@ GameState* GME_InitializeDefault( ) {
     result->enemies = NULL;
     result->numenemy = 0;
 
+    result->bullets = NULL;
+    result->numbullets = 0;
+    result->firstinactivebullet = 0;
+
     return result;
 }
 

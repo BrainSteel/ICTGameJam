@@ -53,10 +53,9 @@ void Attach( Entity* entity, Component pickup ) {
         entity->totalmass += entity->components[last].mass;
 }
 
-void UpdatePlayer( GameState* game, float elapsedtime ) {
-    Player* player = &game->player;
+void UpdateEntity( GameState* game, Entity* entity, float elapsedtime ) {
     float elapsedtime2 = elapsedtime * elapsedtime;
-    Circle* circ = &player->entity.body.shape;
+    Circle* circ = &entity->body.shape;
 
     circ->pos.x += circ->vel.x * elapsedtime + 0.5 * circ->acc.x * elapsedtime2;
     circ->pos.y += circ->vel.y * elapsedtime + 0.5 * circ->acc.y * elapsedtime2;
@@ -79,13 +78,13 @@ void UpdatePlayer( GameState* game, float elapsedtime ) {
         circ->vel.y = 0;
     }
 
-    float ang = player->entity.angvel * elapsedtime;
+    float ang = entity->angvel * elapsedtime;
     float cosang = cos( ang );
     float sinang = sin( ang );
 
     int i;
-    for ( i = 0; i < player->entity.numcomponent; i++ ) {
-        Component* comp = &player->entity.components[i];
+    for ( i = 0; i < entity->numcomponent; i++ ) {
+        Component* comp = &entity->components[i];
 
         // Rotation matrix
         Vector2 rotated;
@@ -98,12 +97,12 @@ void UpdatePlayer( GameState* game, float elapsedtime ) {
         comp->shape.pos.y = circ->pos.y + rotated.y;
     }
 
-    player->entity.angvel += player->entity.angacc * elapsedtime;
-    if (player->entity.angvel > MAX_ANG_VELOCITY) {
-        player->entity.angvel = MAX_ANG_VELOCITY;
+    entity->angvel += entity->angacc * elapsedtime;
+    if (entity->angvel > MAX_ANG_VELOCITY) {
+        entity->angvel = MAX_ANG_VELOCITY;
     }
-    else if (player->entity.angvel < -MAX_ANG_VELOCITY) {
-        player->entity.angvel = -MAX_ANG_VELOCITY;
+    else if (entity->angvel < -MAX_ANG_VELOCITY) {
+        entity->angvel = -MAX_ANG_VELOCITY;
     }
 
     circ->vel.x += circ->acc.x * elapsedtime;
@@ -112,7 +111,14 @@ void UpdatePlayer( GameState* game, float elapsedtime ) {
     if ( circ->vel.x * circ->vel.x + circ->vel.y * circ->vel.y > MAX_PLAYER_SPEED * MAX_PLAYER_SPEED ) {
         circ->vel = VectorScale( VectorNormalize( circ->vel ), MAX_PLAYER_SPEED );
     }
+}
 
+void UpdatePlayer( GameState* game, float elapsedtime ) {
+    Player* player = &game->player;
+
+    UpdateEntity( game, &player->entity, elapsedtime );
+
+    int i;
     for ( i = 0; i < player->numbullet; i++ ) {
         Bullet* bullet = &player->playerbullets[i];
         if ( bullet->active ) {
@@ -120,6 +126,9 @@ void UpdatePlayer( GameState* game, float elapsedtime ) {
             bullet->lifetime -= elapsedtime;
             if (bullet->lifetime <= 0) {
                 DeactivateBullet( bullet );
+                if ( i < player->firstinactivebullet ) {
+                    player->firstinactivebullet = i;
+                }
             }
         }
     }
@@ -272,12 +281,6 @@ static void UseBoosters( Player* player ) {
     player->entity.angacc = moment / player->entity.MOI;
 }
 
-#define ROCKET_CONSTANT 10
-#define ROCKET_CONSTANT_FACTOR 1
-#define PLAYER_BULLET_LIFETIME 100
-#define PLAYER_BULLET_SPEED 16
-#define PLAYER_BULLET_DAMAGE 3
-#define PLAYER_BULLET_RADIUS 5
 static void UseRockets( GameState* game ) {
     if ( game->player.input.mousebutton & SDL_BUTTON( SDL_BUTTON_LEFT )) {
         int i;

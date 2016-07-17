@@ -168,7 +168,12 @@ void Attach( Entity* entity, Component pickup );
 void PerformAction( GameState* game, AbilityType action );
 void FreePlayer( Player* player );
 
+Component GetComponentFrom( Entity host, AbilityType ability, int strength, Vector2 touchpos );
 void AddComponent( GameState* state, Component toAdd );
+void FillDataForAbility( Component* component );
+void FillNoneData( Component* component );
+void FillRocketData( Component* component );
+void FillBoosterData( Component* component );
 
 void AddEnemy( GameState* state, int totalstrength );
 

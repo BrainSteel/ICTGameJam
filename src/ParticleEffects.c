@@ -10,11 +10,11 @@
 
 void UpdateParticle( Circle particle, float elapsedtime );
 
-void Emmit(SDL_Renderer* winrend)
+void Emit(SDL_Renderer* winrend)
 {
     Circle circ;
-    Circle circ2;
-    Circle circ3;
+    //Circle circ2;
+    //Circle circ3;
 
     srand(time(NULL));
     int r = rand();
@@ -78,8 +78,8 @@ void Emmit(SDL_Renderer* winrend)
 
 
         DrawCircle(winrend, circ, 1);
-        DrawCircle(winrend, circ2, 1);
-        DrawCircle(winrend, circ3, 1);
+        //DrawCircle(winrend, circ2, 1);
+        //DrawCircle(winrend, circ3, 1);
     }
 }
 
@@ -144,7 +144,7 @@ void BoosterDirection(SDL_Renderer* winrend)
 //GameState* game,
 void UpdateParticle( Circle particle, float elapsedtime )
 {
-    GameState game;
+    //GameState game;
 
     particle.pos.x = particle.vel.x * elapsedtime + 0.5 * particle.acc.x;
     particle.pos.y = particle.vel.y * elapsedtime + 0.5 * particle.acc.y;

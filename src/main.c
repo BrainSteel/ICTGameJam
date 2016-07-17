@@ -33,6 +33,7 @@
 #define HEALTH_INCREASE_INTERVAL 60
 
 #define COMPONENT_START 20
+#define COMPONENT_START_MAX_STR 2
 
 #define ENEMY_START 3
 #define ENEMY_MED_STRENGTH 3
@@ -122,7 +123,7 @@ int main (int argc, char** argv ) {
     game->player.entity.body.shape.pos.x = PLAYER_START_X;
     game->player.entity.body.shape.pos.y = PLAYER_START_Y;
     game->player.entity.body.health = PLAYER_MAX_HEALTH;
-    game->player.entity.body.strength = 0.75;
+    game->player.entity.body.strength = 1.2;
     game->player.entity.body.ability = Booster;
 
 
@@ -255,7 +256,22 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     }
 
     for ( i = 0; i < COMPONENT_START; i++ ) {
-        ;
+        Component newcomp;
+        CMP_InitializeDefault( &newcomp );
+        newcomp.shape.pos.x = xorshift64star_uniform( MAP_WIDTH );
+        newcomp.shape.pos.y = xorshift64star_uniform( MAP_HEIGHT );
+        newcomp.ability = xorshift64star_uniform( NumAbilities );
+        newcomp.strength = xorshift64star_uniform( COMPONENT_START_MAX_STR );
+        FillDataForAbility( &newcomp );
+
+        gamelog("Ability: %d", newcomp.ability);
+        gamelog("Frameused: %llu", newcomp.frameused);
+        gamelog("Pos: (%f, %f)", newcomp.shape.pos.x, newcomp.shape.pos.y);
+        gamelog("Vel: (%f, %f)", newcomp.shape.vel.x, newcomp.shape.vel.y);
+        gamelog("Acc: (%f, %f)", newcomp.shape.acc.x, newcomp.shape.acc.y);
+        gamelog("Rad: %f", newcomp.shape.rad);
+
+        AddComponent( game, newcomp );
     }
 
     SDL_Rect miniMap;
@@ -480,6 +496,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                 UpdateCircle( &game->pickups[compcount].shape, 1.0 );
             }
         }
+
         int enemycount;
         for ( enemycount = 0; enemycount < game->numenemy; enemycount++ ) {
             if (game->enemies[enemycount].alive) {
@@ -532,8 +549,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         showCurrentView.y = miniMap.y + (game->world.viewableWorld.y / SCALE_FACTOR_Y_SQUARED);
 
         ////////////////////////////////////////////////
-
-
         SDL_SetRenderDrawColor(winrend, 255, 0, 0, SDL_ALPHA_OPAQUE);
 
         // RENDERING OF THE VISIBLE WORLD PUT ADDTIONAL RENDERS AFTER
@@ -546,7 +561,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         SDL_RenderFillRect(winrend, &Hull_Strength);
         Hull_Strength.w = HULL_STRENGTH_BAR_W;
         SDL_RenderCopy(winrend, HullStrength_TXTTex, NULL, &HullStrengthtxt);
-
         SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
         Vector2 offset;
         offset.x = -game->world.viewableWorld.x;

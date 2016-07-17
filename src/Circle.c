@@ -7,6 +7,16 @@
 void DrawCircle( SDL_Renderer* winrend, Circle circ, int fill ) {
     int drawwidth, drawheight;
     SDL_GetRendererOutputSize( winrend, &drawwidth, &drawheight );
+
+    if (circ.rad == 0) {
+        SDL_RenderDrawPoint( winrend, circ.pos.x, circ.pos.y );
+        return;
+    }
+
+    if (circ.pos.x + circ.rad < 0 || circ.pos.x - circ.rad > drawwidth ||
+        circ.pos.y + circ.rad < 0 || circ.pos.y - circ.rad > drawheight )
+        return;
+
 #define SHIFT 7
 #define SHIFTED_1 ((1 << 7))
     unsigned int circx = circ.pos.x;

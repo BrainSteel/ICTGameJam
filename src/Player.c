@@ -251,6 +251,25 @@ static void UseBoosters( Player* player ) {
     VCT_InitializeDefault( &linearforce );
     float moment = 0.0f;
 
+    Component* body = &player->entity.body;
+    if (body->health <= 0) return;
+
+    if (body->ability == Booster) {
+        if ( direction & up ) {
+            linearforce.y -= mod * body->strength;
+        }
+        else if ( direction & down ) {
+            linearforce.y += mod * body->strength;
+        }
+
+        if ( direction & right ) {
+            linearforce.x += mod * body->strength;
+        }
+        else if ( direction & left ) {
+            linearforce.x -= mod * body->strength;
+        }
+    }
+
     int i;
     for ( i = 0; i < player->entity.numcomponent; i++ ) {
         Component* comp = &player->entity.components[i];

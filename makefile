@@ -4,7 +4,7 @@ CFLAGS = -Os -Wall -D DEBUG
 CC = gcc
 
 # Object file names
-OBJECT_NAMES = main.o Defaults.o Circle.o Player.o Enemy.o xorshiftstar.o Font.o
+OBJECT_NAMES = main.o Defaults.o Circle.o Player.o Enemy.o xorshiftstar.o Font.o Component.o
 BMP_NAMES = Background.bmp Player.bmp HullStrength_txt.bmp HelpScreen.bmp
 
 # SDL2 paths

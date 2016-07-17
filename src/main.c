@@ -3,7 +3,6 @@
 
 #include "SDL.h"
 
-#include "Common.h"
 #include "GameState.h"
 #include "xorshiftstar.h"
 #include "Font.h"
@@ -49,7 +48,8 @@
 
 #define PLAYER_MAX_HEALTH 100
 
-void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Window* window, SDL_Texture *helpScreen, GameState* game);
+int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, GameState* game);
+void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game);
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
 
 int main (int argc, char** argv ) {
@@ -90,6 +90,15 @@ int main (int argc, char** argv ) {
     }
     SDL_Texture* HelpScreenTex = SDL_CreateTextureFromSurface(winrend, HelpScreen);
 
+    SDL_Surface* GameOverScreen = SDL_LoadBMP(("rsc/GameOverScreen.bmp"));
+    if(!GameOverScreen)
+    {
+        printf("%s", SDL_GetError());
+        printf("ERROR-> GameOverScreen NOT LOADED");
+        return 1;
+    }
+    SDL_Texture* GameOverScreenTex = SDL_CreateTextureFromSurface(winrend, GameOverScreen);
+
     SDL_PixelFormat* fmt = Background->format;
     Uint8 depth = fmt->BitsPerPixel;
     Uint32 rmask, gmask, bmask, amask;
@@ -115,9 +124,14 @@ int main (int argc, char** argv ) {
     SDL_FreeSurface(BackgroundScaled);
     SDL_FreeSurface(Player);
     SDL_FreeSurface(HelpScreen);
+    SDL_FreeSurface(GameOverScreen);
+
+    GameState* game;
 
     // Initialize the game state
-    GameState* game = GME_InitializeDefault( );
+    restartLoc:
+
+    game = GME_InitializeDefault( );
     game->player.Player_TEX = PlayerTex;
     game->player.entity.body.shape.rad = 20;
     game->player.entity.body.shape.pos.x = PLAYER_START_X;
@@ -140,12 +154,19 @@ int main (int argc, char** argv ) {
     gamelog( "Creating world ...");
     CreateWorld(winrend, BackgroundTex, &game->world, MAP_WIDTH, MAP_HEIGHT);
 
+
+
     gamelog( "Displaying help screen ..." );
-    DisplayHelpScreen( winrend, window, HelpScreenTex, game );
+    DisplayHelpScreen( winrend, HelpScreenTex, game );
 
 
     gamelog( "Running game ..." );
     Run( window, winrend, game );
+
+    gamelog( "Displaying GameOver Screen ...");
+    int result = DisplayGameOverScreen( winrend, GameOverScreenTex, game );
+
+    if(result == 2){goto restartLoc;}
 
     gamelog( "Destroying window and renderer ...");
     SDL_DestroyWindow( window );
@@ -154,6 +175,7 @@ int main (int argc, char** argv ) {
     gamelog( "Destroying textures ...");
     SDL_DestroyTexture(BackgroundTex);
     SDL_DestroyTexture(HelpScreenTex);
+    SDL_DestroyTexture(GameOverScreenTex);
     FreePlayer( &game->player );
 
     gamelog( "Quitting SDL ..." );
@@ -169,8 +191,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         color.r = 255;
         color.g = 0;
         color.b = 0;
-
-    //FNT_Font* font = FNT_InitFont(winrend, "540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
 
     double stepw = SCREEN_WIDTH / 10;
     double steph = SCREEN_HEIGHT / 10;
@@ -606,7 +626,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         SDL_RenderDrawRect(winrend, &miniMap);
         SDL_RenderDrawRect(winrend, &showCurrentView);
 
-        SDL_SetRenderDrawColor( winrend, 255, 0, 0, SDL_ALPHA_OPAQUE );
+        SDL_SetRenderDrawColor( winrend, 255, 100, 100, SDL_ALPHA_OPAQUE );
         for ( i = 0; i < game->numenemy; i++ ) {
             if ( game->enemies[i].alive ) {
                 Circle circ;
@@ -616,9 +636,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                 DrawCircle( winrend, circ, 1 );
             }
         }
-
-        //BoosterDirection(winrend);
-        //FNT_DrawText(winrend, font, "TESTTESTTESTTESTTESTTESTTEST", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 20, 0);
 
         SDL_RenderPresent( winrend );
         game->frames++;
@@ -636,7 +653,82 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     return 0;
 }
 
-void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Window* window, SDL_Texture *helpScreen, GameState* game)
+int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, GameState* game)
+{
+    SDL_Color color;
+    color.r = 255;
+    color.g = 0;
+    color.b = 0;
+
+    FNT_Font* font = FNT_InitFont(winrend, "540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
+
+
+    game->world.gameoverScreen = gameoverScreen;
+
+    SDL_Rect gameoverScreenRect;
+    gameoverScreenRect.h = SCREEN_HEIGHT;
+    gameoverScreenRect.w = SCREEN_WIDTH;
+    gameoverScreenRect.x = gameoverScreenRect.y = 0;
+
+    SDL_Rect restartButtonRect;
+    restartButtonRect.h = 90;
+    restartButtonRect.w = 365;
+    restartButtonRect.x = 195;
+    restartButtonRect.y = 360;
+
+    SDL_Rect quitButtonRect;
+    quitButtonRect.h = 90;
+    quitButtonRect.w = 365;
+    quitButtonRect.x = 790;
+    quitButtonRect.y = 360;
+
+    SDL_Event event;
+    do
+    {
+        SDL_WaitEvent(&event);
+        if (event.type == SDL_MOUSEBUTTONDOWN) {
+            if( (event.button.x > restartButtonRect.x && event.button.x < restartButtonRect.x + restartButtonRect.w) && (event.button.y > restartButtonRect.y && event.button.y < restartButtonRect.y + restartButtonRect.h) )
+            {
+                free( game->bullets );
+                free( game->pickups );
+
+                int i;
+                for(i = 0; i < game->numenemy; i++)
+                {
+                    FreeEnemy(( &game->enemies[i] ));
+                }
+                free(game->enemies);
+                FreePlayer( &game->player );
+
+                return 2;
+
+            }
+            else if( (event.button.x > quitButtonRect.x && event.button.x < quitButtonRect.x + quitButtonRect.w) && (event.button.y > quitButtonRect.y && event.button.y < quitButtonRect.y + quitButtonRect.h) )
+            {
+                break;
+            }
+        }
+
+        SDL_SetRenderDrawColor(winrend, 255, 255, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(winrend);
+
+        FNT_DrawText(winrend, font, "RESTART", 10, 10, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
+
+        SDL_RenderCopy(winrend, game->world.gameoverScreen, NULL, &gameoverScreenRect);
+        SDL_RenderDrawRect(winrend, &restartButtonRect);
+        SDL_RenderDrawRect(winrend, &quitButtonRect);
+
+        FNT_DrawText(winrend, font, "RESTART", 50, 50, 30, FNT_ALIGNLEFT | FNT_ALIGNTOP);
+
+        SDL_RenderPresent( winrend );
+
+    }while( event.key.keysym.sym != SDLK_SPACE );
+
+    return 1;
+
+}
+
+void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game)
 {
     game->world.helpScreen = helpScreen;
 }

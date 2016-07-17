@@ -120,6 +120,7 @@ typedef struct WorldStruct {
     SDL_Texture* globalBackground;
     SDL_Texture* hiddenBackground;
     SDL_Texture* helpScreen;
+    SDL_Texture* gameoverScreen;
 } World;
 
 struct GameStateStruct {
@@ -176,5 +177,6 @@ void FillRocketData( Component* component );
 void FillBoosterData( Component* component );
 
 void AddEnemy( GameState* state, int totalstrength );
+void FreeEnemy( Enemy* enemy );
 
 #endif

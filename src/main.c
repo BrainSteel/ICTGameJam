@@ -155,9 +155,9 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
 
     SDL_Color color;
-        color.r = 0;
-        color.g = 40;
-        color.b = 70;
+        color.r = 255;
+        color.g = 0;
+        color.b = 0;
 
     FNT_Font* font = FNT_InitFont(winrend, "540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
 
@@ -193,11 +193,11 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     helpScreenRect.x = helpScreenRect.y = 0;
 
     int HullStrengthDecr = (Hull_Strength.w / 100);
-
+/*
     Hull_Strength.w -= HullStrengthDecr;
 
     Hull_Strength.w = game->player.entity.body.health;
-
+*/
     SDL_Event event;
     do
     {
@@ -530,7 +530,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         }
 
         BoosterDirection(winrend);
-        FNT_DrawText(winrend, font, "TEST", SCREEN_WIDTH / 6, SCREEN_HEIGHT / 2, 20, 0);
+        FNT_DrawText(winrend, font, "TESTTESTTESTTESTTESTTESTTEST", SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 20, 0);
 
         SDL_RenderPresent( winrend );
         game->frames++;

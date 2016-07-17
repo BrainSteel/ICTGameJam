@@ -1,6 +1,7 @@
 
-#ifndef FONT_H
-#define FONT_H
+#ifndef __Just_For_Nybbles__Font__
+#define __Just_For_Nybbles__Font__
+
 
 #include "SDL.h"
 
@@ -35,5 +36,4 @@ void FNT_DestroyFont(FNT_Font* font);
 
 
 
-
-#endif // FONT_H
+#endif

@@ -6,7 +6,7 @@
 static int FNT_strlen(char* c)
 {
     int i = 0;
-    while(*c++ != '\0') {i++;}
+    while(*c++ != '\0') i++;
     return i;
 }
 
@@ -81,7 +81,7 @@ int FNT_DrawText(SDL_Renderer* rend, FNT_Font* font, char* text, int xOff, int y
                 }
                 if( j == font->charlen) {return FNT_ERROR_CHAR;}
             }
-            destination.y +=destination.h + font->ySpace;
+            destination.y += destination.h + font->ySpace;
         }
     }
     else
@@ -112,7 +112,7 @@ int FNT_DrawText(SDL_Renderer* rend, FNT_Font* font, char* text, int xOff, int y
 
                 if(j == font->charlen){return FNT_ERROR_CHAR;}
             }
-            destination.x =+ destination.w + font->xSpace;
+            destination.x += destination.w + font->xSpace;
         }
     }
 

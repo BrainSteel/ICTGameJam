@@ -59,6 +59,9 @@ int HIGH_SCORE = 0;
 int main (int argc, char** argv ) {
 
 
+    //AUD_Sound* music = AUD_LoadWAV("LevelUp.wav", 1);
+    //AUD_Play(&music);
+
     xorshiftseed( time( 0 ));
 
     gamelog( "Initializing SDL ..." );
@@ -95,6 +98,16 @@ int main (int argc, char** argv ) {
     }
     SDL_Texture* HelpScreenTex = SDL_CreateTextureFromSurface(winrend, HelpScreen);
 
+    SDL_Surface* ComponentHelpScreen = SDL_LoadBMP(("rsc/ComponentHelpScreen.bmp"));
+    if(!ComponentHelpScreen)
+    {
+        printf("%s", SDL_GetError());
+        printf("ERROR-> ComponentHelpScreen NOT LOADED");
+        return 1;
+    }
+    SDL_Texture* ComponentHelpScreenTex = SDL_CreateTextureFromSurface(winrend, ComponentHelpScreen);
+
+
     SDL_Surface* GameOverScreen = SDL_LoadBMP(("rsc/GameOverScreen.bmp"));
     if(!GameOverScreen)
     {
@@ -130,6 +143,7 @@ int main (int argc, char** argv ) {
     SDL_FreeSurface(Player);
     SDL_FreeSurface(HelpScreen);
     SDL_FreeSurface(GameOverScreen);
+    SDL_FreeSurface(ComponentHelpScreen);
 
     GameState* game;
 
@@ -160,9 +174,10 @@ int main (int argc, char** argv ) {
     CreateWorld(winrend, BackgroundTex, &game->world, MAP_WIDTH, MAP_HEIGHT);
 
 
-
+    //ATM this simply initializes the textures
     gamelog( "Displaying help screen ..." );
     DisplayHelpScreen( winrend, HelpScreenTex, game );
+    DisplayComponentHelpScreen( winrend, ComponentHelpScreenTex, game );
 
 
     gamelog( "Running game ..." );
@@ -181,6 +196,7 @@ int main (int argc, char** argv ) {
     SDL_DestroyTexture(BackgroundTex);
     SDL_DestroyTexture(HelpScreenTex);
     SDL_DestroyTexture(GameOverScreenTex);
+    SDL_DestroyTexture(ComponentHelpScreenTex);
     FreePlayer( &game->player );
 
     gamelog( "Quitting SDL ..." );
@@ -228,13 +244,13 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     helpScreenRect.w = SCREEN_WIDTH;
     helpScreenRect.x = helpScreenRect.y = 0;
 
+    /*
     SDL_Event event;
     do
     {
         SDL_WaitEvent(&event);
-        if ( event.key.keysym.sym == SDLK_ESCAPE) {
-                break;
-        }
+
+        if( event.key.keysym.sym == SDLK_SPACE) {break;}
 
         SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
         SDL_RenderClear(winrend);
@@ -243,7 +259,23 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
         SDL_RenderPresent( winrend );
 
-    }while( event.key.keysym.sym != SDLK_SPACE );
+    }while( event.key.keysym.sym != SDLK_ESCAPE );*/
+
+/*
+    SDL_Event event2;
+    do
+    {
+        SDL_WaitEvent(&event2);
+        if ( event2.key.keysym.sym == SDLK_ESCAPE) {break;}
+
+        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(winrend);
+
+        SDL_RenderCopy(winrend, game->world.componentHelpScreen, NULL, &helpScreenRect);
+
+        SDL_RenderPresent( winrend );
+
+    }while( event2.key.keysym.sym != SDLK_SPACE );*/
 
     game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
     game->player.entity.body.shape.rad = 20;
@@ -756,6 +788,60 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
 void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game)
 {
     game->world.helpScreen = helpScreen;
+
+    SDL_Rect helpScreenRect;
+    helpScreenRect.h = SCREEN_HEIGHT;
+    helpScreenRect.w = SCREEN_WIDTH;
+    helpScreenRect.x = helpScreenRect.y = 0;
+
+
+    SDL_Event event;
+    do
+    {
+        SDL_WaitEvent(&event);
+
+        if( event.key.keysym.sym == SDLK_ESCAPE) {break;}
+
+        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(winrend);
+
+        SDL_RenderCopy(winrend, game->world.helpScreen, NULL, &helpScreenRect);
+
+        SDL_RenderPresent( winrend );
+
+    }while( event.key.keysym.sym != SDLK_SPACE );
+}
+
+void DisplayComponentHelpScreen(SDL_Renderer* winrend, SDL_Texture *componentHelpScreen, GameState* game)
+{
+    game->world.componentHelpScreen = componentHelpScreen;
+
+    SDL_Rect helpScreenRect;
+    helpScreenRect.h = SCREEN_HEIGHT;
+    helpScreenRect.w = SCREEN_WIDTH;
+    helpScreenRect.x = helpScreenRect.y = 0;
+
+    SDL_Event event;
+
+    event.key.keysym.sym = NULL;
+
+    while(event.key.keysym.sym == SDLK_ESCAPE || event.key.keysym.sym == SDLK_SPACE)
+    { printf("HEREH"); event.key.keysym.sym = NULL; }
+
+    do
+    {
+        SDL_WaitEvent(&event);
+        if ( event.key.keysym.sym == SDLK_ESCAPE) {break;}
+
+        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(winrend);
+
+        SDL_RenderCopy(winrend, game->world.componentHelpScreen, NULL, &helpScreenRect);
+
+        SDL_RenderPresent( winrend );
+
+    }while( event.key.keysym.sym != SDLK_ESCAPE );
+
 }
 
 void CreateWorld(SDL_Renderer *winrend, SDL_Texture *globalBackground, World *world, int width, int height)

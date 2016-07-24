@@ -244,38 +244,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     helpScreenRect.w = SCREEN_WIDTH;
     helpScreenRect.x = helpScreenRect.y = 0;
 
-    /*
-    SDL_Event event;
-    do
-    {
-        SDL_WaitEvent(&event);
-
-        if( event.key.keysym.sym == SDLK_SPACE) {break;}
-
-        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
-        SDL_RenderClear(winrend);
-
-        SDL_RenderCopy(winrend, game->world.helpScreen, NULL, &helpScreenRect);
-
-        SDL_RenderPresent( winrend );
-
-    }while( event.key.keysym.sym != SDLK_ESCAPE );*/
-
-/*
-    SDL_Event event2;
-    do
-    {
-        SDL_WaitEvent(&event2);
-        if ( event2.key.keysym.sym == SDLK_ESCAPE) {break;}
-
-        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
-        SDL_RenderClear(winrend);
-
-        SDL_RenderCopy(winrend, game->world.componentHelpScreen, NULL, &helpScreenRect);
-
-        SDL_RenderPresent( winrend );
-
-    }while( event2.key.keysym.sym != SDLK_SPACE );*/
 
     game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
     game->player.entity.body.shape.rad = 20;

@@ -1,0 +1,53 @@
+Curly braces -
+Opening and closing curly braces should go on their own line.
+Curly braces should not be used when statement is only one line long.
+
+Statements -
+For sufficiently short statements, it is acceptable to have 2 on one line.
+The width of one line of text should not exceed 120 characters.
+
+Names -
+    Variables - All lowercase, underscores and numerics allowed.
+    Functions - Start with a verb, all words start with upper case. No underscores/all caps if it can be avoided.
+    Macros - All caps, words divided by underscores.
+    Structures - Noun, all words start with upper case. No underscores/all caps if it can be avoided.
+               - All structures should be typedef'd
+               - The name of the structure should end in "Struct", but the name of the typedef should not.
+    Enumerations - Plural, all words start with upper case. No underscores/all caps if it can be avoided.
+                 - All enumerations should be typedef'd
+                 - The name of the enumeration should end in "Enum", but the name of the typedef should not.
+                 - The individual items of the enumeration should be connected capitalized words.
+
+
+
+Functions -
+Prefer "int function_call( int a, int b ) { }" over "int function_call( a, b ) int a, b; { }"
+When a function has an error condition, the error code will be returned and the output will be used as a parameter
+
+Spacing Examples -
+A tab is defined to be 4 spaces
+Maximum of one empty line separating statements, excluding at the top of a file.
+if ( some_condition == 1 ) { stat; state; }
+{
+    ...
+}
+
+while ( )
+{
+    ...
+}
+
+for ( )
+{
+    ...
+}
+
+func_call( );
+
+if ( x == sqrt( n ))
+{
+
+}
+
+if ( condition )
+    return true;

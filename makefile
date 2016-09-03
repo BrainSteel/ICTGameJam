@@ -5,7 +5,7 @@ CC = gcc
 
 # Object file names
 OBJECT_NAMES = main.o Defaults.o Circle.o Player.o Enemy.o xorshiftstar.o Font.o Component.o Entity.o Interactions.o
-BMP_NAMES = Background.bmp Player.bmp HullStrength_txt.bmp HelpScreen.bmp
+BMP_NAMES = Background.bmp HullStrength.bmp HelpScreen.bmp
 
 # SDL2 paths
 SDL2_LDIR = SDL/lib

@@ -14,9 +14,7 @@
 #include "Font.h"
 #include "Sound.h"
 
-//#define SCREEN_WIDTH (1920)
 #define SCREEN_WIDTH (1280)
-//#define SCREEN_HEIGHT (1080)
 #define SCREEN_HEIGHT (720)
 #define FRAMERATE 40
 #define SCREEN_LAG_BEHIND 4
@@ -33,8 +31,8 @@
 #define PLAYER_START_X (MAP_WIDTH / 2)
 #define PLAYER_START_Y (MAP_HEIGHT / 2)
 
-#define MINIMAP_UPPER_LEFT_X ((3 * SCREEN_WIDTH) / 4) //1145
-#define MINIMAP_UPPER_LEFT_Y ((3 * SCREEN_HEIGHT) / 4) //5
+#define MINIMAP_UPPER_LEFT_X ((3 * SCREEN_WIDTH) / 4)
+#define MINIMAP_UPPER_LEFT_Y ((3 * SCREEN_HEIGHT) / 4)
 
 #define HEALTH_INCREASE_INTERVAL 60
 
@@ -58,6 +56,7 @@ void InitializeTextures( GameState* game );
 int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, GameState* game);
 void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game);
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
+void DisplayComponentHelpScreen(SDL_Renderer* winrend, SDL_Texture *componentHelpScreen, GameState* game);
 
 int HIGH_SCORE = 0;
 
@@ -98,6 +97,16 @@ int main (int argc, char** argv ) {
     }
     SDL_Texture* HelpScreenTex = SDL_CreateTextureFromSurface(winrend, HelpScreen);
 
+    SDL_Surface* ComponentHelpScreen = SDL_LoadBMP(("rsc/ComponentHelpScreen.bmp"));
+    if(!ComponentHelpScreen)
+    {
+        printf("%s", SDL_GetError());
+        printf("ERROR-> ComponentHelpScreen NOT LOADED");
+        return 1;
+    }
+    SDL_Texture* ComponentHelpScreenTex = SDL_CreateTextureFromSurface(winrend, ComponentHelpScreen);
+
+
     SDL_Surface* GameOverScreen = SDL_LoadBMP(("rsc/GameOverScreen.bmp"));
     if(!GameOverScreen)
     {
@@ -117,23 +126,13 @@ int main (int argc, char** argv ) {
     SDL_Surface* BackgroundScaled = SDL_CreateRGBSurface( 0, MAP_WIDTH, MAP_HEIGHT, depth, rmask, gmask, bmask, amask );
     SDL_BlitScaled( Background, NULL, BackgroundScaled, NULL );
 
-    // TODO > This player texture is not useful.
-    SDL_Surface* Player = SDL_LoadBMP("rsc/Player.bmp");
-    if(!Player)
-    {
-        printf("ERROR-> Player NOT LOADED");
-        return 1;
-    }
-    SDL_SetColorKey(Player, SDL_TRUE, SDL_MapRGB(Player->format, 0, 0, 0));
-
     SDL_Texture* BackgroundTex = SDL_CreateTextureFromSurface(winrend, BackgroundScaled);
-    SDL_Texture* PlayerTex = SDL_CreateTextureFromSurface(winrend, Player);
 
     SDL_FreeSurface(Background);
     SDL_FreeSurface(BackgroundScaled);
-    SDL_FreeSurface(Player);
     SDL_FreeSurface(HelpScreen);
     SDL_FreeSurface(GameOverScreen);
+    SDL_FreeSurface(ComponentHelpScreen);
 
     GameState* game;
 
@@ -141,8 +140,6 @@ int main (int argc, char** argv ) {
     restartLoc:
 
     game = GME_InitializeDefault( );
-    game->player.Player_TEX = PlayerTex;
-
 
     game->world.height = MAP_HEIGHT;
     game->world.width = MAP_WIDTH;
@@ -158,10 +155,11 @@ int main (int argc, char** argv ) {
     CreateWorld(winrend, BackgroundTex, &game->world, MAP_WIDTH, MAP_HEIGHT);
 
 
-
+    //ATM this simply initializes the textures
     gamelog( "Displaying help screen ..." );
     // TODO > Help screen should really be part of Run( )
     DisplayHelpScreen( winrend, HelpScreenTex, game );
+    DisplayComponentHelpScreen( winrend, ComponentHelpScreenTex, game );
 
 
     gamelog( "Running game ..." );
@@ -183,6 +181,7 @@ int main (int argc, char** argv ) {
     SDL_DestroyTexture(BackgroundTex);
     SDL_DestroyTexture(HelpScreenTex);
     SDL_DestroyTexture(GameOverScreenTex);
+    SDL_DestroyTexture(ComponentHelpScreenTex);
     FreePlayer( &game->player );
 
     gamelog( "Quitting SDL ..." );
@@ -204,7 +203,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     double steph = SCREEN_HEIGHT / 10;
 
     gamelog( "Loading Hull Strength bitmap ..." );
-    SDL_Surface* HullStrength_TXT = SDL_LoadBMP("rsc/HullStrength_txt.bmp");
+    SDL_Surface* HullStrength_TXT = SDL_LoadBMP("rsc/HullStrength.bmp");
     if(!HullStrength_TXT)
     {
         gamelog( "Failed to load hull strength bitmap: %s ...", SDL_GetError( ) );
@@ -231,24 +230,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     helpScreenRect.h = SCREEN_HEIGHT;
     helpScreenRect.w = SCREEN_WIDTH;
     helpScreenRect.x = helpScreenRect.y = 0;
-
-    gamelog( "Displaying start screen ..." );
-    SDL_Event event;
-    do
-    {
-        SDL_WaitEvent(&event);
-        if ( event.key.keysym.sym == SDLK_ESCAPE) {
-                break;
-        }
-
-        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
-        SDL_RenderClear(winrend);
-
-        SDL_RenderCopy(winrend, game->world.helpScreen, NULL, &helpScreenRect);
-
-        SDL_RenderPresent( winrend );
-
-    } while( event.key.keysym.sym != SDLK_SPACE );
 
     // TODO > Configurable/Modifiable/Player-defined starting configuration?
     gamelog( "Initializing player configuration ..." );
@@ -341,7 +322,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         game->player.entity.body.shape.acc.y = 0.0f;
         game->player.entity.angacc = 0.0f;
 
-        gamelogline;
+        ;
         if ( game->frames % SPAWN_RATE == 0 ) {
             AddEnemy( game, enemymed + xorshift64star_range( -enemydiff, enemydiff ) );
         }
@@ -357,13 +338,11 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                 game->player.entity.body.health = PLAYER_MAX_HEALTH;
             }
         }
-        gamelogline;
 
         game->player.entity.updateleft = 1.0;
         PerformAction( game, Booster );
         PerformAction( game, Rocket );
 
-        gamelogline;
         int enemycount;
         for (enemycount = 0; enemycount < game->enemies.num; enemycount++ ) {
             Enemy* enemy = &game->enemies.items[enemycount];
@@ -373,17 +352,14 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
-        gamelogline;
         PerformEntityBulletCollisions( game, &game->player.entity, &game->bullets, game->player.entity.updateleft );
-        gamelogline;
+
         if ( game->player.entity.body.health <= 0 ) {
             break;
         }
-        gamelogline;
-        PerformEntityComponentCollisions( game, &game->player.entity, &game->components, game->player.entity.updateleft );
-        gamelogline;
 
-        gamelogline;
+        PerformEntityComponentCollisions( game, &game->player.entity, &game->components, game->player.entity.updateleft );
+
         for (enemycount = 0; enemycount < game->enemies.num; enemycount++ ) {
             Enemy* enemy = &game->enemies.items[enemycount];
             if ( enemy->active ) {
@@ -397,7 +373,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
-        gamelogline;
+
         UpdateEntity( game, &game->player.entity, game->player.entity.updateleft );
 
         for ( enemycount = 0; enemycount < game->enemies.num; enemycount++ ) {
@@ -408,7 +384,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
-        gamelogline;
+
         int compcount;
         for ( compcount = 0; compcount < game->components.num; compcount++ ) {
             Component* comp = &game->components.items[compcount];
@@ -430,7 +406,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                 }
             }
         }
-        gamelogline;
 
         int bulcount;
         for ( bulcount = 0; bulcount < game->player.bullets.num; bulcount++ ) {
@@ -455,7 +430,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
-        gamelogline;
         for ( bulcount = 0; bulcount < game->bullets.num; bulcount++ ) {
             Bullet* bul = &game->bullets.items[bulcount];
             if ( bul->active ) {
@@ -478,7 +452,6 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
             }
         }
 
-        gamelogline;
         game->world.centerX = game->player.entity.body.shape.pos.x;
         game->world.centerX -= SCREEN_LAG_BEHIND * game->player.entity.body.shape.vel.x;
         game->world.centerY = game->player.entity.body.shape.pos.y;
@@ -609,7 +582,7 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
     color.g = 0;
     color.b = 0;
 
-    FNT_Font* font = FNT_InitFont(winrend, "540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
+    FNT_Font* font = FNT_InitFont(winrend, "rsc/540x20Font.bmp", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 3, 4, color);
 
 
     game->world.gameoverScreen = gameoverScreen;
@@ -691,6 +664,8 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
 
     }while( event.key.keysym.sym != SDLK_SPACE );
 
+    FNT_DestroyFont( font );
+
     return 1;
 
 }
@@ -701,6 +676,55 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
 void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game)
 {
     game->world.helpScreen = helpScreen;
+
+    SDL_Rect helpScreenRect;
+    helpScreenRect.h = SCREEN_HEIGHT;
+    helpScreenRect.w = SCREEN_WIDTH;
+    helpScreenRect.x = helpScreenRect.y = 0;
+
+
+    SDL_Event event;
+    do
+    {
+        SDL_WaitEvent(&event);
+
+        if( event.key.keysym.sym == SDLK_ESCAPE) {break;}
+
+        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(winrend);
+
+        SDL_RenderCopy(winrend, game->world.helpScreen, NULL, &helpScreenRect);
+
+        SDL_RenderPresent( winrend );
+
+    }while( event.key.keysym.sym != SDLK_SPACE );
+}
+
+void DisplayComponentHelpScreen(SDL_Renderer* winrend, SDL_Texture *componentHelpScreen, GameState* game)
+{
+    game->world.componentHelpScreen = componentHelpScreen;
+
+    SDL_Rect helpScreenRect;
+    helpScreenRect.h = SCREEN_HEIGHT;
+    helpScreenRect.w = SCREEN_WIDTH;
+    helpScreenRect.x = helpScreenRect.y = 0;
+
+    SDL_Event event;
+
+    do
+    {
+        SDL_WaitEvent(&event);
+        if ( event.key.keysym.sym == SDLK_ESCAPE) {break;}
+
+        SDL_SetRenderDrawColor(winrend, 0, 0, 0, SDL_ALPHA_OPAQUE);
+        SDL_RenderClear(winrend);
+
+        SDL_RenderCopy(winrend, game->world.componentHelpScreen, NULL, &helpScreenRect);
+
+        SDL_RenderPresent( winrend );
+
+    }while( event.key.keysym.sym != SDLK_ESCAPE );
+
 }
 
 // TODO > This function doesn't really do anything.

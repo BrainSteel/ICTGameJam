@@ -5,9 +5,11 @@
 #include "stdio.h"
 // TODO > Different logging levels? (verbose, toggleable in-game, etc?)
 #define gamelog(...) printf(__VA_ARGS__); printf("\n")
+#define gamelogerror(...) printf("Error > "); gamelog(__VA_ARGS__)
 #define gamelogline gamelog( "Logging line at: %d", __LINE__ )
 #else
 #define gamelog(...)
+#define gamelogerror(...)
 #define gamelogline
 #endif
 

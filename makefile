@@ -1,6 +1,6 @@
 # Project name, C flags, and compiler
 PROJECT_NAME = ictjam
-CFLAGS = -Os -Wall -D DEBUG
+CFLAGS = -Os -Wall -D DEBUG -std=c11
 CC = gcc
 
 # Object file names

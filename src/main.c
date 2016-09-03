@@ -53,6 +53,7 @@
 int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, GameState* game);
 void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game);
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
+void DisplayComponentHelpScreen(SDL_Renderer* winrend, SDL_Texture *componentHelpScreen, GameState* game);
 
 int HIGH_SCORE = 0;
 
@@ -790,11 +791,6 @@ void DisplayComponentHelpScreen(SDL_Renderer* winrend, SDL_Texture *componentHel
     helpScreenRect.x = helpScreenRect.y = 0;
 
     SDL_Event event;
-
-    event.key.keysym.sym = NULL;
-
-    while(event.key.keysym.sym == SDLK_ESCAPE || event.key.keysym.sym == SDLK_SPACE)
-    { printf("HEREH"); event.key.keysym.sym = NULL; }
 
     do
     {

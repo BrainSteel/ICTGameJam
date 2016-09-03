@@ -1,5 +1,20 @@
+//
+// Defaults.c
+// This file contains the default initialization procedures
+// for every major type.
+// TODO > This file should probably go. We should handle these kinds of things elsewhere.
+//
+
 #include "Common.h"
 #include "GameState.h"
+
+#define PLAYER_COMPONENT_BATCH 1
+#define GAME_COMPONENT_BATCH 1
+
+#define GAME_ENEMY_BATCH 1
+
+#define PLAYER_BULLET_BATCH 5
+#define GAME_BULLET_BATCH 40
 
 GameState* GME_InitializeDefault( ) {
     GameState* result = malloc( sizeof(*result) );
@@ -12,31 +27,22 @@ GameState* GME_InitializeDefault( ) {
 
     PLR_InitializeDefault( &result->player );
 
-    result->pickups = NULL;
-    result->numpickups = 0;
-
-    result->enemies = NULL;
-    result->numenemy = 0;
-
-    result->bullets = NULL;
-    result->numbullets = 0;
-    result->firstinactivebullet = 0;
+    result->components = ManagedListInit( Component, GAME_COMPONENT_BATCH );
+    result->enemies = ManagedListInit( Enemy, GAME_ENEMY_BATCH );
+    result->bullets = ManagedListInit( Bullet, GAME_BULLET_BATCH );
 
     return result;
 }
 
 void PLR_InitializeDefault( Player* ref ) {
     ref->entity.type = Friend;
-    ref->entity.numcomponent = 0;
-    ref->entity.components = NULL;
+    ref->entity.components = ManagedListInit( Component, PLAYER_COMPONENT_BATCH );
     ref->entity.totalmass = 0.0f;
     ref->entity.angacc = 0.0f;
     ref->entity.angvel = 0.0f;
     ref->entity.MOI = 0.0f;
 
-    ref->firstinactivebullet = 0;
-    ref->numbullet = 0;
-    ref->playerbullets = NULL;
+    ref->bullets = ManagedListInit( Bullet, PLAYER_BULLET_BATCH );
 
     ref->Player_TEX = NULL;
     ref->input.keyboard = NULL;

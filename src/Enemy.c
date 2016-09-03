@@ -1,3 +1,9 @@
+//
+// Enemy.c
+// This file contains enemy-specific functionality,
+// including their automated decision patterns and
+// construction process.
+//
 
 #include "xorshiftstar.h"
 #include "Common.h"
@@ -17,42 +23,24 @@ static const Vector2 reloptions[8] = {
     { ROOT2_2, -ROOT2_2 }
 };
 
+DefineManagedListFunctions( Enemy );
+
 Component GetComponentFrom( Entity host, AbilityType ability, int strength, Vector2 relativepos );
 void Dummy( Enemy* entity, GameState* game ) { }
 void FunctionSelector( Enemy* enemy, GameState* state );
 
+#define ENEMY_COMPONENT_BATCH 1
 #define ATTRIBUTE_MAX 10
 #define ATTRIBUTE_MED 6
 #define ATTRIBUTE_LITE 3
 void AddEnemy( GameState* game, int totalstrength ) {
-    Enemy* result = NULL;
-    int i;
-    for ( i = 0; i < game->numenemy; i++ ) {
-        Enemy* test = &game->enemies[i];
-        if ( !test->alive ) {
-            result = test;
-            break;
-        }
-    }
-
-    // Didn't find a dead enemy to replace.
-    if ( result == NULL ) {
-        Enemy* newenemies = realloc( game->enemies, sizeof(*newenemies) * ( game->numenemy + 1 ));
-        if (!newenemies) {
-            gamelog( "Ran out of memory allocating enemy ..." );
-            return;
-        }
-        game->enemies = newenemies;
-        game->numenemy++;
-        result = &game->enemies[game->numenemy - 1];
-    }
+    Enemy* result = ManagedListUseFirstInactive( Enemy, &game->enemies );
 
     int eighthwidth = game->world.width / 8;
     int eighthheight = game->world.height / 8;
 
     result->entity.type = Foe;
-    result->entity.components = NULL;
-    result->entity.numcomponent = 0;
+    result->entity.components = ManagedListInit( Component, ENEMY_COMPONENT_BATCH );
     result->entity.angacc = 0;
     result->entity.angvel = 0;
     result->entity.MOI = 0;
@@ -110,7 +98,7 @@ void AddEnemy( GameState* game, int totalstrength ) {
         currentstrength += strength;
     }
 
-    result->alive = 1;
+    result->active = 1;
 }
 
 static void UseEnemyBoosters( Enemy* enemy, GameState* state, Vector2 direction ) {
@@ -121,9 +109,9 @@ static void UseEnemyBoosters( Enemy* enemy, GameState* state, Vector2 direction 
     float moment = 0.0f;
 
     int i;
-    for ( i = 0; i < enemy->entity.numcomponent; i++ ) {
-        Component* comp = &enemy->entity.components[i];
-        if ( comp->health >= 0 ) {
+    for ( i = 0; i < enemy->entity.components.num; i++ ) {
+        Component* comp = &enemy->entity.components.items[i];
+        if ( comp->active ) {
             linearforce.x += direction.x * comp->strength;
             linearforce.y += direction.y * comp->strength;
 
@@ -142,50 +130,14 @@ static void UseEnemyBoosters( Enemy* enemy, GameState* state, Vector2 direction 
     enemy->entity.angacc = moment / enemy->entity.MOI;
 }
 
-#define ENEMY_BATCH_SIZE 40
-static void AllocEnemyBulletBatch( GameState* state ) {
-    Bullet* bullets = realloc( state->bullets, (state->numbullets + ENEMY_BATCH_SIZE) * sizeof(*bullets) );
-    if ( bullets ) {
-        state->bullets = bullets;
-        int i;
-        for ( i = state->numbullets; i < state->numbullets + ENEMY_BATCH_SIZE; i++ ) {
-            BLT_InitializeDefault( &state->bullets[i] );
-        }
-        state->numbullets += ENEMY_BATCH_SIZE;
-    }
-}
-
-static Bullet* UseFirstInactiveEnemyBullet( GameState* state ) {
-    if ( state->numbullets <= state->firstinactivebullet ) {
-        AllocEnemyBulletBatch( state );
-        Bullet* result = &state->bullets[state->firstinactivebullet];
-        state->firstinactivebullet++;
-        return result;
-    }
-    else {
-        Bullet* result = &state->bullets[state->firstinactivebullet];
-        for ( state->firstinactivebullet++; state->firstinactivebullet < state->numbullets; state->firstinactivebullet++ ) {
-            if ( !state->bullets[state->firstinactivebullet].active ) {
-                break;
-            }
-        }
-
-        if ( state->firstinactivebullet == state->numbullets ) {
-            AllocEnemyBulletBatch( state );
-        }
-
-        return result;
-    }
-}
-
 static void UseEnemyRockets( Enemy* enemy, GameState* state, Vector2 location ) {
     int i;
-    for ( i = 0; i < enemy->entity.numcomponent; i++ ) {
-        Component* comp = &enemy->entity.components[i];
+    for ( i = 0; i < enemy->entity.components.num; i++ ) {
+        Component* comp = &enemy->entity.components.items[i];
         if ( comp->ability == Rocket &&
-             comp->health > 0 &&
+             comp->active &&
              (state->frames - comp->frameused) > ROCKET_CONSTANT - ROCKET_CONSTANT_FACTOR * comp->strength ) {
-            Bullet* newbullet = UseFirstInactiveEnemyBullet( state );
+            Bullet* newbullet = ManagedListUseFirstInactive( Bullet, &state->bullets );
             newbullet->active = 1;
             newbullet->damage = PLAYER_BULLET_DAMAGE;
             newbullet->lifetime = PLAYER_BULLET_LIFETIME;
@@ -294,14 +246,14 @@ void Scavenger( Enemy* enemy, GameState* state ) {
     float length = state->world.width;
 
     int i;
-    for ( i = 0; i < state->numpickups; i++ ) {
+    for ( i = 0; i < state->components.num; i++ ) {
         if ( closest == NULL ) {
-            closest = &state->pickups[i];
+            closest = &state->components.items[i];
             length = VectorLength( VectorSubtract( enemy->entity.body.shape.pos, closest->shape.pos ));
             continue;
         }
         else {
-            Component* testcomp = &state->pickups[i];
+            Component* testcomp = &state->components.items[i];
             float testlen = VectorLength( VectorSubtract( enemy->entity.body.shape.pos, testcomp->shape.pos ));
             if (testlen < length) {
                 length = testlen;
@@ -328,6 +280,7 @@ void Scavenger( Enemy* enemy, GameState* state ) {
 void Random( Enemy* enemy, GameState* state ) {
 #define RAND_RADIUS 100
     Vector2 random1, random2;
+    // TODO > This doesn't make any sense.
     random1.x = xorshift64star_uniform( 2 * RAND_RADIUS + 1) - RAND_RADIUS;
     random1.y = xorshift64star_uniform( 2 * RAND_RADIUS + 1) - RAND_RADIUS;
     random2.x = xorshift64star_uniform( 2 * RAND_RADIUS + 1) - RAND_RADIUS;
@@ -336,19 +289,14 @@ void Random( Enemy* enemy, GameState* state ) {
     UseEnemyRockets( enemy, state, random2 );
 }
 
-void UpdateEnemy( GameState* state, Enemy* enemy, float elapsedtime ) {
-
+void PerformEnemyAction( GameState* state, Enemy* enemy ) {
     if ( enemy->phase_duration + enemy->phase_start < state->frames ) {
         enemy->func = FunctionSelector;
     }
 
     enemy->func( enemy, state );
-
-    UpdateEntity( state, &enemy->entity, elapsedtime );
 }
 
 void FreeEnemy( Enemy* enemy ) {
-    if ( enemy->entity.numcomponent > 0 ) {
-        free( enemy->entity.components );
-    }
+    ManagedListFree( Component, &enemy->entity.components );
 }

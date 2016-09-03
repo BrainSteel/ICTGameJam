@@ -1,3 +1,8 @@
+//
+// main.c
+// Entry point and main game loop.
+//
+
 #include "stdlib.h"
 #include "time.h"
 #include "stdio.h"
@@ -28,8 +33,8 @@
 #define PLAYER_START_X (MAP_WIDTH / 2)
 #define PLAYER_START_Y (MAP_HEIGHT / 2)
 
-#define MINIMAP_UPPER_LEFT_X (3 * SCREEN_WIDTH) / 4 //1145
-#define MINIMAP_UPPER_LEFT_Y (3 * SCREEN_HEIGHT) / 4 //5
+#define MINIMAP_UPPER_LEFT_X ((3 * SCREEN_WIDTH) / 4) //1145
+#define MINIMAP_UPPER_LEFT_Y ((3 * SCREEN_HEIGHT) / 4) //5
 
 #define HEALTH_INCREASE_INTERVAL 60
 
@@ -42,14 +47,14 @@
 #define SPAWN_RATE 150
 #define DIFF_INCREASE 1000
 
-#define COMPONENT_LAUNCHV 5.0
-
-#define RETRIEVABLE_CHANCE 1
-
 #define HULL_STRENGTH_BAR_W ((SCREEN_WIDTH / 2))
 
 #define PLAYER_MAX_HEALTH 100
 
+#define ElementOffset( type, element ) ((uint64_t)&((type*)0)->element)
+#define ValueAtOffset( type, ptr, offset ) (*(type*)(((void*)(ptr))+(offset)))
+
+void InitializeTextures( GameState* game );
 int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, GameState* game);
 void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game);
 void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, int width, int height);
@@ -57,8 +62,6 @@ void CreateWorld( SDL_Renderer* winrend, SDL_Texture* background, World* world, 
 int HIGH_SCORE = 0;
 
 int main (int argc, char** argv ) {
-
-
     xorshiftseed( time( 0 ));
 
     gamelog( "Initializing SDL ..." );
@@ -114,6 +117,7 @@ int main (int argc, char** argv ) {
     SDL_Surface* BackgroundScaled = SDL_CreateRGBSurface( 0, MAP_WIDTH, MAP_HEIGHT, depth, rmask, gmask, bmask, amask );
     SDL_BlitScaled( Background, NULL, BackgroundScaled, NULL );
 
+    // TODO > This player texture is not useful.
     SDL_Surface* Player = SDL_LoadBMP("rsc/Player.bmp");
     if(!Player)
     {
@@ -138,12 +142,6 @@ int main (int argc, char** argv ) {
 
     game = GME_InitializeDefault( );
     game->player.Player_TEX = PlayerTex;
-    game->player.entity.body.shape.rad = 20;
-    game->player.entity.body.shape.pos.x = PLAYER_START_X;
-    game->player.entity.body.shape.pos.y = PLAYER_START_Y;
-    game->player.entity.body.health = PLAYER_MAX_HEALTH;
-    game->player.entity.body.strength = 1.2;
-    game->player.entity.body.ability = Booster;
 
 
     game->world.height = MAP_HEIGHT;
@@ -162,6 +160,7 @@ int main (int argc, char** argv ) {
 
 
     gamelog( "Displaying help screen ..." );
+    // TODO > Help screen should really be part of Run( )
     DisplayHelpScreen( winrend, HelpScreenTex, game );
 
 
@@ -169,8 +168,11 @@ int main (int argc, char** argv ) {
     Run( window, winrend, game );
 
     gamelog( "Displaying GameOver Screen ...");
+    // TODO > Game over screen should really be part of Run( )
     int result = DisplayGameOverScreen( winrend, GameOverScreenTex, game );
 
+    // TODO > We're not releasing resources here.
+    //      > MEMORY LEAK!
     if(result == 2){goto restartLoc;}
 
     gamelog( "Destroying window and renderer ...");
@@ -187,7 +189,8 @@ int main (int argc, char** argv ) {
     SDL_Quit( );
     return 0;
 }
-// set camera to center of player
+
+// TODO > This function is way too long and hard to maintain.
 int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     int enemymed = ENEMY_MED_STRENGTH;
     int enemydiff = ENEMY_MED_STRENGTH;
@@ -200,10 +203,11 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     double stepw = SCREEN_WIDTH / 10;
     double steph = SCREEN_HEIGHT / 10;
 
+    gamelog( "Loading Hull Strength bitmap ..." );
     SDL_Surface* HullStrength_TXT = SDL_LoadBMP("rsc/HullStrength_txt.bmp");
     if(!HullStrength_TXT)
     {
-        printf("ERROR-> HullStrength_TXT NOT LOADED");
+        gamelog( "Failed to load hull strength bitmap: %s ...", SDL_GetError( ) );
         return 1;
     }
     SDL_SetColorKey(HullStrength_TXT, SDL_TRUE, SDL_MapRGB(HullStrength_TXT->format, 0, 0, 0));
@@ -228,6 +232,7 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     helpScreenRect.w = SCREEN_WIDTH;
     helpScreenRect.x = helpScreenRect.y = 0;
 
+    gamelog( "Displaying start screen ..." );
     SDL_Event event;
     do
     {
@@ -243,11 +248,22 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
 
         SDL_RenderPresent( winrend );
 
-    }while( event.key.keysym.sym != SDLK_SPACE );
+    } while( event.key.keysym.sym != SDLK_SPACE );
 
+    // TODO > Configurable/Modifiable/Player-defined starting configuration?
+    gamelog( "Initializing player configuration ..." );
+    game->player.entity.body.shape.rad = 20;
+    game->player.entity.body.shape.pos.x = PLAYER_START_X;
+    game->player.entity.body.shape.pos.y = PLAYER_START_Y;
+    game->player.entity.body.health = PLAYER_MAX_HEALTH;
+    game->player.entity.body.strength = 1.2;
+    game->player.entity.body.mass = 1.0;
+    game->player.entity.totalmass += game->player.entity.body.mass;
+    game->player.entity.body.ability = Booster;
     game->player.entity.body.shape.pos.y = SCREEN_HEIGHT / 2;
     game->player.entity.body.shape.rad = 20;
     game->player.entity.body.health = PLAYER_MAX_HEALTH;
+    game->player.entity.body.active = 1;
     Component booster;
     booster.strength = 1.0;
     booster.mass = 1.7;
@@ -275,27 +291,21 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
     rocket.shape.pos.x = game->player.entity.body.shape.pos.x + 15;
     Attach( &game->player.entity, rocket );
 
+    gamelog( "Adding initial enemies ..." );
     int i;
     for (i = 0; i < ENEMY_START; i++) {
         AddEnemy( game, ENEMY_MED_STRENGTH + xorshift64star_uniform(ENEMY_DIFF_STRENGTH * 2 + 1) - ENEMY_DIFF_STRENGTH );
     }
 
+    gamelog( "Adding initial components ..." );
     for ( i = 0; i < COMPONENT_START; i++ ) {
         Component newcomp;
         CMP_InitializeDefault( &newcomp );
         newcomp.shape.pos.x = xorshift64star_uniform( MAP_WIDTH );
         newcomp.shape.pos.y = xorshift64star_uniform( MAP_HEIGHT );
         newcomp.ability = xorshift64star_uniform( NumAbilities );
-        newcomp.strength = xorshift64star_uniform( COMPONENT_START_MAX_STR );
+        newcomp.strength = xorshift64star_uniform( COMPONENT_START_MAX_STR ) + 1;
         FillDataForAbility( &newcomp );
-
-        gamelog("Ability: %d", newcomp.ability);
-        gamelog("Frameused: %llu", newcomp.frameused);
-        gamelog("Pos: (%f, %f)", newcomp.shape.pos.x, newcomp.shape.pos.y);
-        gamelog("Vel: (%f, %f)", newcomp.shape.vel.x, newcomp.shape.vel.y);
-        gamelog("Acc: (%f, %f)", newcomp.shape.acc.x, newcomp.shape.acc.y);
-        gamelog("Rad: %f", newcomp.shape.rad);
-
         AddComponent( game, newcomp );
     }
 
@@ -325,16 +335,18 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         }
 
         // Reset player accelerations
+        // TODO > Resetting player accelerations right after taking in input doesn't really
+        //      > make sense, does it?
         game->player.entity.body.shape.acc.x = 0.0f;
         game->player.entity.body.shape.acc.y = 0.0f;
         game->player.entity.angacc = 0.0f;
 
+        gamelogline;
         if ( game->frames % SPAWN_RATE == 0 ) {
-            AddEnemy( game, enemymed + xorshift64star_uniform(2 * enemydiff + 1) - enemydiff );
+            AddEnemy( game, enemymed + xorshift64star_range( -enemydiff, enemydiff ) );
         }
 
         if ( game->frames % DIFF_INCREASE == 0 ) {
-            gamelog( "Increasing difficulty..." );
             enemymed += 2;
             enemydiff = enemymed / 10 + 1;
         }
@@ -345,202 +357,128 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
                 game->player.entity.body.health = PLAYER_MAX_HEALTH;
             }
         }
+        gamelogline;
 
-        int bulcount;
-        for ( bulcount = 0; bulcount < game->player.numbullet; bulcount++ ) {
-            if ( game->player.playerbullets[bulcount].active ) {
-                Bullet* bullet = &game->player.playerbullets[bulcount];
-                int enemycount;
-                for (enemycount = 0; enemycount < game->numenemy; enemycount++) {
-                    if ( game->enemies[enemycount].alive ) {
-                        Enemy* enemy = &game->enemies[enemycount];
-                        if (enemy->entity.body.health >= 0) {
-                            CollisionData col = GetCollision(enemy->entity.body.shape, bullet->shape, 1.0);
-                            if (col.didoccur) {
-                                enemy->entity.body.health -= bullet->damage;
-                                bullet->active = 0;
-                                if (bulcount < game->player.firstinactivebullet) {
-                                    game->player.firstinactivebullet = bulcount;
-                                }
-                                if ( enemy->entity.body.health <= 0) {
-                                    enemy->alive = 0;
-                                    int deadcomps;
-                                    for (deadcomps = 0; deadcomps < enemy->entity.numcomponent; deadcomps++ ) {
-                                        if (enemy->entity.components[deadcomps].health >= 0) {
-                                            enemy->entity.components[deadcomps].health = -1;
-                                            if (xorshift64star_uniform( RETRIEVABLE_CHANCE ) == 0) {
-                                                Component* comp = &enemy->entity.components[deadcomps];
-                                                comp->shape.vel = VectorScale( VectorNormalize( comp->relativepos ), COMPONENT_LAUNCHV );
-                                                AddComponent( game, *comp );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        int compcount;
-                        for ( compcount = 0; compcount < enemy->entity.numcomponent; compcount++ ) {
-                            if (enemy->entity.components[compcount].health > 0) {
-                                CollisionData col = GetCollision( enemy->entity.components[compcount].shape, bullet->shape, 1.0 );
-                                if (col.didoccur) {
-                                    bullet->active = 0;
-                                    if (bulcount < game->player.firstinactivebullet) {
-                                        game->player.firstinactivebullet = bulcount;
-                                    }
-                                    enemy->entity.components[compcount].health -= bullet->damage;
-                                    if ( enemy->entity.components[compcount].health <= 0 ) {
-                                        Component* comp = &enemy->entity.components[compcount];
-                                        if (xorshift64star_uniform(RETRIEVABLE_CHANCE) == 0) {
-                                            comp->shape.vel = VectorScale( VectorNormalize( comp->relativepos ), COMPONENT_LAUNCHV );
-                                            AddComponent( game, *comp );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        for (bulcount = 0; bulcount < game->numbullets; bulcount++ ) {
-            Bullet* bullet = &game->bullets[bulcount];
-            if (bullet->active) {
-                if (game->player.entity.body.health >= 0) {
-                    CollisionData col = GetCollision(game->player.entity.body.shape, bullet->shape, 1.0);
-                    if (col.didoccur) {
-                        game->player.entity.body.health -= bullet->damage;
-                        bullet->active = 0;
-                        if (bulcount < game->firstinactivebullet) {
-                            game->firstinactivebullet = bulcount;
-                        }
-                    }
-                }
-
-                int compcount;
-                for ( compcount = 0; compcount < game->player.entity.numcomponent; compcount++ ) {
-                    if (game->player.entity.components[compcount].health > 0) {
-                        CollisionData col = GetCollision( game->player.entity.components[compcount].shape, bullet->shape, 1.0 );
-                        if (col.didoccur) {
-                            bullet->active = 0;
-                            if (bulcount < game->firstinactivebullet) {
-                                game->firstinactivebullet = bulcount;
-                            }
-                            game->player.entity.components[compcount].health -= bullet->damage;
-                            if ( game->player.entity.components[compcount].health <= 0 ) {
-                                Component* comp = &game->player.entity.components[compcount];
-                                if (xorshift64star_uniform(RETRIEVABLE_CHANCE) == 0) {
-                                    comp->shape.vel = VectorScale( VectorNormalize( comp->relativepos ), COMPONENT_LAUNCHV );
-                                    AddComponent( game, *comp );
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (game->player.entity.body.health <= 0) {
-            break;
-        }
-
-        float enemyupdates[game->numenemy];
-        int enemyupdatecount;
-        for ( enemyupdatecount = 0; enemyupdatecount < game->numenemy; enemyupdatecount++ ) {
-            enemyupdates[ enemyupdatecount ] = 1.0;
-        }
-
-        float playerupdate = 1.0;
-        int compcount = 0;
-        for (compcount = 0; compcount < game->numpickups; compcount++ ) {
-            if ( game->pickups[compcount].health >= 0 && game->pickups[compcount].invinceframes <= 0) {
-                CollisionData col = GetCollision( game->pickups[compcount].shape, game->player.entity.body.shape, playerupdate );
-                if ( col.didoccur ) {
-                    UpdatePlayer( game, col.elapsedtime );
-                    UpdateCircle( &game->pickups[compcount].shape, col.elapsedtime );
-                    playerupdate -= col.elapsedtime;
-                    Attach( &game->player.entity, game->pickups[compcount] );
-                    game->pickups[compcount].health = -1;
-                }
-                else {
-                    int entitycomps;
-                    for ( entitycomps = 0; entitycomps < game->player.entity.numcomponent; entitycomps++ ) {
-                        Component temp = game->player.entity.components[entitycomps];
-                        temp.shape.vel.x = game->player.entity.body.shape.vel.x;
-                        temp.shape.vel.y = game->player.entity.body.shape.vel.y;
-
-                        CollisionData col = GetCollision( game->pickups[compcount].shape, temp.shape, playerupdate );
-                        if (col.didoccur) {
-                            UpdatePlayer( game, col.elapsedtime );
-                            UpdateCircle( &game->pickups[compcount].shape, col.elapsedtime );
-                            playerupdate -= col.elapsedtime;
-                            Attach( &game->player.entity, game->pickups[compcount] );
-                            game->pickups[compcount].health = -1;
-                        }
-                    }
-                }
-
-                int enemycount;
-                for ( enemycount = 0; enemycount < game->numenemy; enemycount++ ) {
-                    CollisionData ecol = GetCollision( game->pickups[compcount].shape, game->enemies[enemycount].entity.body.shape, enemyupdates[enemycount] );
-                    if ( ecol.didoccur ) {
-                        UpdateEnemy(game, &game->enemies[enemycount], ecol.elapsedtime );
-                        UpdateCircle( &game->pickups[compcount].shape, col.elapsedtime );
-                        Attach( &game->enemies[enemycount].entity, game->pickups[compcount] );
-                        enemyupdates[enemycount] -= col.elapsedtime;
-                        game->pickups[compcount].health = -1;
-                    }
-
-                    int entitycomps;
-                    for ( entitycomps = 0; entitycomps < game->enemies[enemycount].entity.numcomponent; entitycomps++ ) {
-                        Component temp = game->enemies[enemycount].entity.components[entitycomps];
-                        temp.shape.vel.x = game->enemies[enemycount].entity.body.shape.vel.x;
-                        temp.shape.vel.y = game->enemies[enemycount].entity.body.shape.vel.y;
-
-                        CollisionData ecol2 = GetCollision( game->pickups[compcount].shape, temp.shape, enemyupdates[enemycount] );
-                        if ( ecol2.didoccur ) {
-                            UpdateEnemy( game, &game->enemies[enemycount], ecol2.elapsedtime );
-                            UpdateCircle( &game->pickups[compcount].shape, ecol2.elapsedtime );
-                            Attach( &game->enemies[enemycount].entity, game->pickups[compcount] );
-                            enemyupdates[enemycount] -= col.elapsedtime;
-                            game->pickups[compcount].health = -1;
-                        }
-                    }
-                }
-            }
-        }
-
+        game->player.entity.updateleft = 1.0;
         PerformAction( game, Booster );
         PerformAction( game, Rocket );
-        UpdatePlayer( game, playerupdate );
-        for ( compcount = 0; compcount < game->numpickups; compcount++ ) {
-            if (game->pickups[compcount].health >= 0) {
-                if (game->pickups[compcount].invinceframes >= 0 ) {
-                    game->pickups[compcount].invinceframes -= 1 > game->pickups[compcount].invinceframes ? game->pickups[compcount].invinceframes : 1;
-                }
-                UpdateCircle( &game->pickups[compcount].shape, 1.0 );
-            }
-        }
 
+        gamelogline;
         int enemycount;
-        for ( enemycount = 0; enemycount < game->numenemy; enemycount++ ) {
-            if (game->enemies[enemycount].alive) {
-                UpdateEnemy( game, &game->enemies[enemycount], enemyupdates[enemycount] );
+        for (enemycount = 0; enemycount < game->enemies.num; enemycount++ ) {
+            Enemy* enemy = &game->enemies.items[enemycount];
+            enemy->entity.updateleft = 1.0;
+            if ( enemy->active ) {
+                PerformEnemyAction( game, enemy);
             }
         }
-        for ( bulcount = 0; bulcount < game->numbullets; bulcount++ ) {
-            if (game->bullets[bulcount].active) {
-                UpdateCircle( &game->bullets[bulcount].shape, 1.0 );
-                game->bullets[bulcount].lifetime -= 1.0;
-                if (game->bullets[bulcount].lifetime <= 0) {
-                    game->bullets[bulcount].active = 0;
-                    if (bulcount < game->firstinactivebullet) {
-                        game->firstinactivebullet = bulcount;
-                    }
+
+        gamelogline;
+        PerformEntityBulletCollisions( game, &game->player.entity, &game->bullets, game->player.entity.updateleft );
+        gamelogline;
+        if ( game->player.entity.body.health <= 0 ) {
+            break;
+        }
+        gamelogline;
+        PerformEntityComponentCollisions( game, &game->player.entity, &game->components, game->player.entity.updateleft );
+        gamelogline;
+
+        gamelogline;
+        for (enemycount = 0; enemycount < game->enemies.num; enemycount++ ) {
+            Enemy* enemy = &game->enemies.items[enemycount];
+            if ( enemy->active ) {
+                PerformEntityBulletCollisions( game, &enemy->entity, &game->player.bullets, enemy->entity.updateleft );
+                if ( enemy->entity.body.health <= 0 ) {
+                    ManagedListFree( Component, &enemy->entity.components );
+                    ManagedListDeactivate( Enemy, &game->enemies, enemycount );
+                }
+
+                PerformEntityComponentCollisions(game, &enemy->entity, &game->components, enemy->entity.updateleft );
+            }
+        }
+
+        gamelogline;
+        UpdateEntity( game, &game->player.entity, game->player.entity.updateleft );
+
+        for ( enemycount = 0; enemycount < game->enemies.num; enemycount++ ) {
+            Enemy* enemy = &game->enemies.items[enemycount];
+            if ( enemy->active ) {
+                enemy->entity.updateleft = 1.0;
+                UpdateEntity( game, &enemy->entity, enemy->entity.updateleft );
+            }
+        }
+
+        gamelogline;
+        int compcount;
+        for ( compcount = 0; compcount < game->components.num; compcount++ ) {
+            Component* comp = &game->components.items[compcount];
+            if ( comp->active ) {
+                if ( comp->invinceframes >= 0 ) {
+                    // TODO > Figure out why the hell I put this here
+                    comp->invinceframes -= 1 > comp->invinceframes ? comp->invinceframes : 1;
+                }
+                UpdateCircle( &comp->shape, 1.0 );
+                float rad = comp->shape.rad;
+                Vector2 newpos = comp->shape.pos;
+
+                // If the circle went out of bounds, we should deactivate this component
+                if ( newpos.x < -rad || newpos.y < -rad ) {
+                    ManagedListDeactivate( Component, &game->components, compcount );
+                }
+                else if ( newpos.x > MAP_WIDTH + rad || newpos.y > MAP_HEIGHT + rad ) {
+                    ManagedListDeactivate( Component, &game->components, compcount );
+                }
+            }
+        }
+        gamelogline;
+
+        int bulcount;
+        for ( bulcount = 0; bulcount < game->player.bullets.num; bulcount++ ) {
+            Bullet* bul = &game->player.bullets.items[bulcount];
+            if ( bul->active ) {
+                // Move all active bullets 1 frame
+                UpdateCircle( &bul->shape, 1.0 );
+                bul->lifetime -= 1.0;
+                Vector2 bulpos = bul->shape.pos;
+                float bulrad = bul->shape.rad;
+                if (bul->lifetime <= 0) {
+                    // If the lifetime has expired, deactivate the bullet
+                    ManagedListDeactivate( Bullet, &game->player.bullets, bulcount );
+                }
+                // if the bullet went out of bounds, deactivate the bullet
+                else if ( bulpos.x < -bulrad || bulpos.y < -bulrad ) {
+                    ManagedListDeactivate( Bullet, &game->player.bullets, bulcount );
+                }
+                else if ( bulpos.x > MAP_WIDTH + bulrad || bulpos.y > MAP_HEIGHT + bulrad ) {
+                    ManagedListDeactivate( Bullet, &game->player.bullets, bulcount );
                 }
             }
         }
 
+        gamelogline;
+        for ( bulcount = 0; bulcount < game->bullets.num; bulcount++ ) {
+            Bullet* bul = &game->bullets.items[bulcount];
+            if ( bul->active ) {
+                // Move all active bullets 1 frame
+                UpdateCircle( &bul->shape, 1.0 );
+                bul->lifetime -= 1.0;
+                Vector2 bulpos = bul->shape.pos;
+                float bulrad = bul->shape.rad;
+                if (bul->lifetime <= 0) {
+                    // If the lifetime has expired, deactivate the bullet
+                    ManagedListDeactivate( Bullet, &game->bullets, bulcount );
+                }
+                // if the bullet went out of bounds, deactivate the bullet
+                else if ( bulpos.x < -bulrad || bulpos.y < -bulrad ) {
+                    ManagedListDeactivate( Bullet, &game->bullets, bulcount );
+                }
+                else if ( bulpos.x > MAP_WIDTH + bulrad || bulpos.y > MAP_HEIGHT + bulrad ) {
+                    ManagedListDeactivate( Bullet, &game->bullets, bulcount );
+                }
+            }
+        }
+
+        gamelogline;
         game->world.centerX = game->player.entity.body.shape.pos.x;
         game->world.centerX -= SCREEN_LAG_BEHIND * game->player.entity.body.shape.vel.x;
         game->world.centerY = game->player.entity.body.shape.pos.y;
@@ -590,13 +528,17 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         Vector2 offset;
         offset.x = -game->world.viewableWorld.x;
         offset.y = -game->world.viewableWorld.y;
+
         DrawEntity( winrend, &game->player.entity, offset );
 
         SDL_SetRenderDrawColor( winrend, 255, 0, 255, SDL_ALPHA_OPAQUE );
         int i;
-        for ( i = 0; i < game->player.numbullet; i++ ) {
-            if ( game->player.playerbullets[i].active ) {
-                Circle withcontext = game->player.playerbullets[i].shape;
+
+        // TODO > Separate drawing functions and modifiable colors for
+        //      > bullets and components?
+        for ( i = 0; i < game->player.bullets.num; i++ ) {
+            if ( game->player.bullets.items[i].active ) {
+                Circle withcontext = game->player.bullets.items[i].shape;
                 withcontext.pos.x += offset.x;
                 withcontext.pos.y += offset.y;
                 DrawCircle( winrend, withcontext, 1 );
@@ -604,25 +546,25 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         }
 
         SDL_SetRenderDrawColor( winrend, 255, 255, 0, SDL_ALPHA_OPAQUE );
-        for ( i = 0; i < game->numbullets; i++ ) {
-            if ( game->bullets[i].active ) {
-                Circle withcontext = game->bullets[i].shape;
+        for ( i = 0; i < game->bullets.num; i++ ) {
+            if ( game->bullets.items[i].active ) {
+                Circle withcontext = game->bullets.items[i].shape;
                 withcontext.pos.x += offset.x;
                 withcontext.pos.y += offset.y;
                 DrawCircle( winrend, withcontext, 1);
             }
         }
 
-        for ( i = 0; i < game->numpickups; i++ ) {
-            if ( game->pickups[i].health > 0 ) {
-                DrawComponent(winrend, &game->pickups[i], offset);
+        for ( i = 0; i < game->components.num; i++ ) {
+            if ( game->components.items[i].active ) {
+                DrawComponent(winrend, &game->components.items[i], offset);
             }
         }
 
         SDL_SetRenderDrawColor( winrend, 255, 255, 0, SDL_ALPHA_OPAQUE );
-        for ( i = 0; i < game->numenemy; i++ ) {
-            if ( game->enemies[i].alive ) {
-                DrawEntity( winrend, &game->enemies[i].entity, offset );
+        for ( i = 0; i < game->enemies.num; i++ ) {
+            if ( game->enemies.items[i].active ) {
+                DrawEntity( winrend, &game->enemies.items[i].entity, offset );
             }
         }
 
@@ -632,20 +574,20 @@ int Run( SDL_Window* window, SDL_Renderer* winrend, GameState* game ) {
         SDL_RenderDrawRect(winrend, &showCurrentView);
 
         SDL_SetRenderDrawColor( winrend, 255, 100, 100, SDL_ALPHA_OPAQUE );
-        for ( i = 0; i < game->numenemy; i++ ) {
-            if ( game->enemies[i].alive ) {
+        for ( i = 0; i < game->enemies.num; i++ ) {
+            if ( game->enemies.items[i].active ) {
                 Circle circ;
                 circ.rad = 2;
-                circ.pos.x = game->enemies[i].entity.body.shape.pos.x / SCALE_FACTOR_X_SQUARED + miniMap.x;
-                circ.pos.y = game->enemies[i].entity.body.shape.pos.y / SCALE_FACTOR_Y_SQUARED + miniMap.y;
+                circ.pos.x = game->enemies.items[i].entity.body.shape.pos.x / SCALE_FACTOR_X_SQUARED + miniMap.x;
+                circ.pos.y = game->enemies.items[i].entity.body.shape.pos.y / SCALE_FACTOR_Y_SQUARED + miniMap.y;
                 DrawCircle( winrend, circ, 1 );
             }
         }
 
-
-
         SDL_RenderPresent( winrend );
         game->frames++;
+
+        // TODO > Variable frame rate!
         uint64_t endtime = SDL_GetTicks( );
         if ( endtime - starttime < 1000 / FRAMERATE) {
             SDL_Delay(( 1000 / FRAMERATE ) - ( SDL_GetTicks() - starttime ));
@@ -696,15 +638,15 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
         if (event.type == SDL_MOUSEBUTTONDOWN) {
             if( (event.button.x > restartButtonRect.x && event.button.x < restartButtonRect.x + restartButtonRect.w) && (event.button.y > restartButtonRect.y && event.button.y < restartButtonRect.y + restartButtonRect.h) )
             {
-                free( game->bullets );
-                free( game->pickups );
+                ManagedListFree( Bullet, &game->bullets );
+                ManagedListFree( Component, &game->components );
 
                 int i;
-                for(i = 0; i < game->numenemy; i++)
+                for(i = 0; i < game->enemies.num; i++)
                 {
-                    FreeEnemy(( &game->enemies[i] ));
+                    FreeEnemy(( &game->enemies.items[i] ));
                 }
-                free(game->enemies);
+                ManagedListFree( Enemy, &game->enemies );
                 FreePlayer( &game->player );
 
                 return 2;
@@ -753,11 +695,15 @@ int DisplayGameOverScreen(SDL_Renderer* winrend, SDL_Texture *gameoverScreen, Ga
 
 }
 
+// TODO > We could use a more useful InitializePlayer routine.
+
+// TODO > This function does not make sense.
 void DisplayHelpScreen(SDL_Renderer* winrend, SDL_Texture *helpScreen, GameState* game)
 {
     game->world.helpScreen = helpScreen;
 }
 
+// TODO > This function doesn't really do anything.
 void CreateWorld(SDL_Renderer *winrend, SDL_Texture *globalBackground, World *world, int width, int height)
 {
     world->height = height;

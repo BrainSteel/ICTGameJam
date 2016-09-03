@@ -1,6 +1,8 @@
-
+//
+// xorshiftstar.c
 // Random number generator.
 // Reference: https://en.wikipedia.org/wiki/Xorshift
+//
 
 #include "stdint.h"
 #include "time.h"
@@ -28,6 +30,11 @@ uint64_t xorshift64star_uniform( uint64_t range ) {
     uint64_t result;
     while (( result = xorshift64star( )) > cutoff ) ;
     return result % range;
+}
+
+uint64_t xorshift64star_range( int64_t low, int64_t high ) {
+    uint64_t range = high - low + 1;
+    return xorshift64star_uniform( range ) + low;
 }
 
 void xorshiftseed( uint64_t seed ) {

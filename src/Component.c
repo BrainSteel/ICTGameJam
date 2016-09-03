@@ -1,4 +1,37 @@
+//
+// Component.c
+// Functions to manage creation of components.
+//
+
+#include "Common.h"
 #include "GameState.h"
+
+DefineManagedListFunctions( Component );
+
+void DrawComponent( SDL_Renderer* winrend, Component* comp, Vector2 offset ) {
+    if (!comp->active)
+        return;
+
+    // TODO > What about using actual textures here?
+    switch ( comp->ability ) {
+        case None:
+            SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
+            break;
+        case Rocket:
+            SDL_SetRenderDrawColor( winrend, 0, 0, 255, SDL_ALPHA_OPAQUE );
+            break;
+        case Booster:
+            SDL_SetRenderDrawColor( winrend, 0, 255, 0, SDL_ALPHA_OPAQUE );
+            break;
+        default:
+            SDL_SetRenderDrawColor( winrend, 255, 255, 255, SDL_ALPHA_OPAQUE );
+    }
+
+    Circle withoffset = comp->shape;
+    withoffset.pos.x += offset.x;
+    withoffset.pos.y += offset.y;
+    DrawCircle( winrend, withoffset, 1 );
+}
 
 Component GetComponentFrom( Entity host, AbilityType ability, int strength, Vector2 touchpos ) {
     Component result;
@@ -37,6 +70,8 @@ void FillDataForAbility( Component* component ) {
     }
 }
 
+// TODO > Most of these functions are entirely arbitrary
+//      > we could make more reasonable formulae.
 void FillNoneData( Component* component ) {
     component->ability = None;
     component->mass = 1.0;
@@ -58,40 +93,21 @@ void FillBoosterData( Component* component ) {
     component->shape.rad = 5 + 5 * component->strength;
 }
 
-#define UNINTERRUPT_FRAMES 10
+#define UNINTERRUPT_FRAMES 30
 void AddComponent( GameState* state, Component toAdd ) {
-    int i;
-    gamelog("checking for good place");
-    for ( i = 0; i < state->numpickups; i++ ) {
-        if ( state->pickups[i].health <= 0) {
-            break;
-        }
-    }
-
-    if ( i == state->numpickups ) {
-        Component* newlist = realloc( state->pickups, (state->numpickups + 1) * sizeof( *newlist ));
-        if ( newlist ) {
-            state->pickups = newlist;
-            state->numpickups++;
-        }
-        else {
-            gamelog( "Failed to allocate memory for a component." );
-            return;
-        }
-    }
-
-    state->pickups[i] = toAdd;
-    state->pickups[i].invinceframes = UNINTERRUPT_FRAMES;
+    Component* comp = ManagedListUseFirstInactive(Component, &state->components);
+    *comp = toAdd;
+    comp->invinceframes = UNINTERRUPT_FRAMES;
 
     switch( toAdd.ability ) {
         case None:
-            FillNoneData( &state->pickups[i] );
+            FillNoneData( comp );
             break;
         case Rocket:
-            FillRocketData( &state->pickups[i] );
+            FillRocketData( comp );
             break;
         case Booster:
-            FillBoosterData( &state->pickups[i] );
+            FillBoosterData( comp );
             break;
         default:
             break;

@@ -1,3 +1,7 @@
+//
+// Sound.c
+// Quick sound library for SDL.
+//
 
 #include "SDL.h"
 #include "Sound.h"

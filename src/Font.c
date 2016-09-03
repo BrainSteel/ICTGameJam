@@ -1,3 +1,8 @@
+//
+// Font.c
+// Small library for drawing text with bitmap fonts using SDL.
+//
+
 #include "Font.h"
 #include "SDL.h"
 
